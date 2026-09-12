@@ -59,7 +59,11 @@ EOF
 fun_bot1() {
 clear
 [[ ! -e "/etc/.maAsiss/.Shellbtsss" ]] && {
-wget -qO- https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/BotAPI.sh >/etc/.maAsiss/.Shellbtsss
+# Only persist the payload when the download actually succeeded, otherwise an
+# empty file would permanently short-circuit this check.
+wget -qO /tmp/.Shellbtsss https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/BotAPI.sh &&
+    [[ -s /tmp/.Shellbtsss ]] && mv /tmp/.Shellbtsss /etc/.maAsiss/.Shellbtsss
+rm -f /tmp/.Shellbtsss
 }
 [[ "$(grep -wc "sam_bot" "/etc/rc.local")" = '0' ]] && {
 sed -i '$ i\screen -dmS sam_bot bbt' /etc/rc.local >/dev/null 2>&1

@@ -7,11 +7,11 @@ import getopt
 import time
 
 # Listen
-LISTENING_ADDR = '127.0.0.1'
+LISTENING_ADDR = '0.0.0.0'
 if sys.argv[1:]:
     LISTENING_PORT = int(sys.argv[1])
 else:
-    LISTENING_PORT = 700
+    LISTENING_PORT = 2082
 
 # Pass
 PASS = ''
@@ -19,8 +19,11 @@ PASS = ''
 # CONST
 BUFLEN = 4096 * 4
 TIMEOUT = 60
-DEFAULT_HOST = '127.0.0.1:69'
-RESPONSE = 'HTTP/1.1 101 <b><font color="red">LawNetwork</font></b>\r\n\r\n'
+DEFAULT_HOST = '127.0.0.1:1194'
+RESPONSE = (
+    'HTTP/1.1 101 WebSocket <font color="red">LawNetwork</font>\r\n'
+    'Content-Length: 104857600000\r\n\r\n'
+)
 
 
 class Server(threading.Thread):

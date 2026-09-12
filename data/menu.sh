@@ -79,12 +79,12 @@ echo -e "$COLOR1└────────────────────�
 echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
 echo -e "$COLOR1 ${NC}  $COLOR1[INFO]${NC} Check for Script updates"
 sleep 2
-wget -q -O /root/update.sh "https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/update.sh" && chmod +x /root/update.sh
+wget -q -O /root/update.sh "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/update.sh" && chmod +x /root/update.sh
 sleep 2
 /root/./update.sh
 rm /root/update.sh
 #rm /opt/.ver
-#version_up=$( curl -sS https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/version)
+#version_up=$( curl -sS https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/version)
 #echo "$version_up" > /opt/.ver
 
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
@@ -107,7 +107,7 @@ cekup=`uptime -p | grep -ow "day"`
 IPVPS=$(cat /etc/lukman/ip)
 sensored_ip=$(echo $IPVPS | sed 's/\.[0-9]*\.[0-9]*$/.*.*/')
 
-serverV=$( curl -sS https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/version); ##### USING EXTERNAL LINK #####
+serverV=$( curl -sS https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/version); ##### USING EXTERNAL LINK #####
 
 uis="${COLOR1}Premium Version$NC"
 echo -e "$COLOR1 $NC ${WH}User Roles     ${COLOR1}: ${WH}$uis"

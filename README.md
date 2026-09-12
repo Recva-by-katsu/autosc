@@ -7,7 +7,7 @@ NB: These codes are totally free, open source, and all belongs to ©Yudhynet. Me
 ### Pilih salah satu dari kedua link di bawah
 Link panjang
 ```
-wget https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/setup.sh && chmod +x setup.sh && ./setup.sh
+wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/setup.sh && chmod +x setup.sh && ./setup.sh
 ```
 Link pendek
 ```
@@ -30,5 +30,5 @@ nano /etc/issue.net
 ### For anyone whos using ISP RUMAHWEB Indonesia or FCCDCI server
 If you encounter when installing the script is taking time so long, change the repository to local one (Data Utama Surabaya, Indonesia), copy and paste this code then run the Installer again
 ```
-wget raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/RepoLocal.sh && bash RepoLocal.sh && rm RepoLocal.sh && apt update
+wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/RepoLocal.sh && bash RepoLocal.sh && rm RepoLocal.sh && apt update
 ```
