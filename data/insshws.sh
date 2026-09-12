@@ -1,16 +1,21 @@
 #!/bin/bash
+# Identitas repo hanya ada di /etc/katsutun/repo.conf (lihat data/repo.conf).
+# katsu-update menulis ulang file itu bila hilang, jadi $RAW selalu terisi.
+[ -r /etc/katsutun/repo.conf ] || katsu-update status >/dev/null 2>&1
+# shellcheck source=data/repo.conf
+. /etc/katsutun/repo.conf
 cd
-wget -O /usr/local/bin/ws-dropbear https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/dropbear-ws.py
-wget -O /usr/local/bin/ws-stunnel https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/ws-stunnel
-wget -O /usr/local/bin/ws-ovpn https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/ws-ovpn.py
+wget -O /usr/local/bin/ws-dropbear "$RAW/data/dropbear-ws.py"
+wget -O /usr/local/bin/ws-stunnel "$RAW/data/ws-stunnel"
+wget -O /usr/local/bin/ws-ovpn "$RAW/data/ws-ovpn.py"
 
 chmod +x /usr/local/bin/ws-dropbear
 chmod +x /usr/local/bin/ws-stunnel
 chmod +x /usr/local/bin/ws-ovpn
 
-wget -O /etc/systemd/system/ws-dropbear.service https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/service-wsdropbear && chmod +x /etc/systemd/system/ws-dropbear.service
-wget -O /etc/systemd/system/ws-stunnel.service https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/ws-stunnel.service && chmod +x /etc/systemd/system/ws-stunnel.service
-wget -O /etc/systemd/system/ws-ovpn.service https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/ws-ovpn.service && chmod +x /etc/systemd/system/ws-ovpn.service
+wget -O /etc/systemd/system/ws-dropbear.service "$RAW/data/service-wsdropbear" && chmod +x /etc/systemd/system/ws-dropbear.service
+wget -O /etc/systemd/system/ws-stunnel.service "$RAW/data/ws-stunnel.service" && chmod +x /etc/systemd/system/ws-stunnel.service
+wget -O /etc/systemd/system/ws-ovpn.service "$RAW/data/ws-ovpn.service" && chmod +x /etc/systemd/system/ws-ovpn.service
 
 systemctl daemon-reload
 systemctl enable ws-dropbear.service

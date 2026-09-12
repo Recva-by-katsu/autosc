@@ -29,6 +29,34 @@ if [ "$(systemd-detect-virt)" == "openvz" ]; then
 		exit 1
 fi
 
+############# Sumber script #############
+# Satu-satunya tempat identitas repo di-hardcode (bersama data/katsu-update.sh),
+# karena setup.sh diunduh sendirian sebelum repo.conf ada di VPS.
+# Override saat install:  GH_USER=namaku GH_REPO=forkku ./setup.sh
+GH_USER="${GH_USER:-Revaa-Cerza}"
+GH_REPO="${GH_REPO:-autosc}"
+GH_BRANCH="${GH_BRANCH:-main}"
+KATSU_CONF_DIR="${KATSU_CONF_DIR:-/etc/katsutun}"
+BOOTSTRAP_RAW="${KATSU_GH_RAW:-https://raw.githubusercontent.com}/$GH_USER/$GH_REPO/$GH_BRANCH"
+
+bootstrap_repo_conf() {
+    mkdir -p "$KATSU_CONF_DIR"
+    if ! curl -fsSL "$BOOTSTRAP_RAW/data/repo.conf" -o "$KATSU_CONF_DIR/repo.conf"; then
+        echo "Gagal mengunduh data/repo.conf dari $GH_USER/$GH_REPO@$GH_BRANCH"
+        return 1
+    fi
+    # Jadikan pilihan repo ini default baru supaya update berikutnya tetap ke sini.
+    sed -i -e "s|^GH_USER=.*|GH_USER=\"\${GH_USER:-$GH_USER}\"|" \
+           -e "s|^GH_REPO=.*|GH_REPO=\"\${GH_REPO:-$GH_REPO}\"|" \
+           -e "s|^GH_BRANCH=.*|GH_BRANCH=\"\${GH_BRANCH:-$GH_BRANCH}\"|" \
+           "$KATSU_CONF_DIR/repo.conf"
+    chmod 644 "$KATSU_CONF_DIR/repo.conf"
+}
+bootstrap_repo_conf || exit 1
+# shellcheck source=data/repo.conf
+. "$KATSU_CONF_DIR/repo.conf"
+############# /Sumber script #############
+
 localip=$(hostname -I | cut -d\  -f1)
 hst=( `hostname` )
 dart=$(cat /etc/hosts | grep -w `hostname` | awk '{print $2}')
@@ -44,7 +72,7 @@ echo -e "[ ${tyblue}NOTE${NC} ] Multi path, Multi port, support debian 10 , Ubun
 sleep 2
 echo -e "[ ${green}INFO${NC} ] By KatsuTun"
 sleep 1
-echo -e "[ ${green}INFO${NC} ] github.com/Revaa-Cerza/autosc"
+echo -e "[ ${green}INFO${NC} ] $REPO_URL"
 sleep 5
 
 echo ""
@@ -111,7 +139,7 @@ fi
 fi
 
 echo ""
-wget -q https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/dependencies.sh;chmod +x dependencies.sh;./dependencies.sh
+wget -q "$RAW/data/dependencies.sh";chmod +x dependencies.sh;./dependencies.sh
 rm dependencies.sh
 clear
 
@@ -158,56 +186,56 @@ echo -e "${tyblue}|     PROCESS INSTALLED SSH & OPENVPN      |${NC}"
 echo -e "${tyblue}'------------------------------------------'${NC}"
 sleep 2
 clear
-wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/ssh-vpn.sh && chmod +x ssh-vpn.sh && ./ssh-vpn.sh
+wget "$RAW/data/ssh-vpn.sh" && chmod +x ssh-vpn.sh && ./ssh-vpn.sh
 #Install Xray
 echo -e "${tyblue}.------------------------------------------.${NC}"
 echo -e "${tyblue}|          PROCESS INSTALLED XRAY          |${NC}"
 echo -e "${tyblue}'------------------------------------------'${NC}"
 sleep 2
 clear
-wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/ins-xray.sh && chmod +x ins-xray.sh && ./ins-xray.sh
+wget "$RAW/data/ins-xray.sh" && chmod +x ins-xray.sh && ./ins-xray.sh
 #Install SSH Websocket
 echo -e "${tyblue}.------------------------------------------.${NC}"
 echo -e "${tyblue}|      PROCESS INSTALLED WEBSOCKET SSH     |${NC}"
 echo -e "${tyblue}'------------------------------------------'${NC}"
 sleep 2
 clear
-wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/insshws.sh && chmod +x insshws.sh && ./insshws.sh
+wget "$RAW/data/insshws.sh" && chmod +x insshws.sh && ./insshws.sh
 #Install OHP Websocket
 echo -e "${tyblue}.------------------------------------------.${NC}"
 echo -e "${tyblue}|          PROCESS INSTALLED OHP           |${NC}"
 echo -e "${tyblue}'------------------------------------------'${NC}"
 sleep 2
 clear
-wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/ohp.sh && chmod +x ohp.sh && ./ohp.sh
+wget "$RAW/data/ohp.sh" && chmod +x ohp.sh && ./ohp.sh
 #Install AutoBackup
 echo -e "${tyblue}.------------------------------------------.${NC}"
 echo -e "${tyblue}|          PROCESS INSTALLED AUTO BACKUP           |${NC}"
 echo -e "${tyblue}'------------------------------------------'${NC}"
 sleep 2
 clear
-wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/set-br.sh && chmod +x set-br.sh && ./set-br.sh
+wget "$RAW/data/set-br.sh" && chmod +x set-br.sh && ./set-br.sh
 #Install REST API & Documentation
 echo -e "${tyblue}.------------------------------------------.${NC}"
 echo -e "${tyblue}|      PROCESS INSTALLED API & DOCS        |${NC}"
 echo -e "${tyblue}'------------------------------------------'${NC}"
 sleep 2
 clear
-wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/api/ins-api.sh && chmod +x ins-api.sh && ./ins-api.sh
+wget "$RAW/data/api/ins-api.sh" && chmod +x ins-api.sh && ./ins-api.sh
 rm -f ins-api.sh
 #Install newest version straight from the latest GitHub commit + auto update
 echo -e "${tyblue}.------------------------------------------.${NC}"
 echo -e "${tyblue}|   INSTALL LATEST VERSION & AUTO UPDATE   |${NC}"
 echo -e "${tyblue}'------------------------------------------'${NC}"
 sleep 2
-wget -q -O /usr/bin/katsu-update https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/katsu-update.sh && chmod +x /usr/bin/katsu-update
+wget -q -O /usr/bin/katsu-update "$RAW/data/katsu-update.sh" && chmod +x /usr/bin/katsu-update
 # Pulls every menu/helper listed in data/manifest.txt from the newest commit,
 # writes /opt/.ver and enables the auto update cron (manage with menu-update).
 katsu-update apply --force
 katsu-update enable
 # Telegram backup sender (used by menu-backup); previously installed by update.sh
 mkdir -p /etc/lukman
-wget -q -O /etc/lukman/dependencies.sh https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/v1.1.0/dependencies.sh; bash /etc/lukman/dependencies.sh
+wget -q -O /etc/lukman/dependencies.sh "$RAW/data/v1.1.0/dependencies.sh"; bash /etc/lukman/dependencies.sh
 curl -s ipinfo.io/ip > /etc/lukman/ip
 curl -s ipinfo.io/org | cut -d " " -f 2-10 > /etc/lukman/isp
 curl -s ipinfo.io/city > /etc/lukman/city
@@ -317,7 +345,7 @@ echo ""
 echo -e "Setting up autorefresh on xray user login"
 #echo -ne "Choose between 1-30 minutes: "; read afresh
 cd
-wget -q https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/addons/crontab.sh
+wget -q "$RAW/data/addons/crontab.sh"
 chmod +x crontab.sh; ./crontab.sh; rm crontab.sh
 # crontab.sh rewrites /etc/crontab only; the auto update lives in /etc/cron.d
 katsu-update cron

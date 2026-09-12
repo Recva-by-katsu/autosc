@@ -1,5 +1,4 @@
 #!/bin/bash
-# My Telegram : https://github.com/Revaa-Cerza/autosc
 # ==========================================
 # Color
 RED='\033[0;31m'

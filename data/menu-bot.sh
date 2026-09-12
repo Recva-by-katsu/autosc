@@ -1,4 +1,9 @@
 #!/bin/bash
+# Identitas repo hanya ada di /etc/katsutun/repo.conf (lihat data/repo.conf).
+# katsu-update menulis ulang file itu bila hilang, jadi $RAW selalu terisi.
+[ -r /etc/katsutun/repo.conf ] || katsu-update status >/dev/null 2>&1
+# shellcheck source=data/repo.conf
+. /etc/katsutun/repo.conf
 dateFromServer=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
 biji=`date +"%Y-%m-%d" -d "$dateFromServer"`
 ###########- COLOR CODE -##############
@@ -61,7 +66,7 @@ clear
 [[ ! -e "/etc/.maAsiss/.Shellbtsss" ]] && {
 # Only persist the payload when the download actually succeeded, otherwise an
 # empty file would permanently short-circuit this check.
-wget -qO /tmp/.Shellbtsss https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/BotAPI.sh &&
+wget -qO /tmp/.Shellbtsss "$RAW/data/BotAPI.sh" &&
     [[ -s /tmp/.Shellbtsss ]] && mv /tmp/.Shellbtsss /etc/.maAsiss/.Shellbtsss
 rm -f /tmp/.Shellbtsss
 }

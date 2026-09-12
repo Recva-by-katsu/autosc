@@ -9,12 +9,14 @@
 #   katsu-update enable|disable   toggle auto update
 #   katsu-update interval <min>   auto update check interval (1-1440)
 #   katsu-update branch <name>    track another branch
+#   katsu-update repo <user>/<repo>  track another repository (fork)
 #   katsu-update rollback         restore files from the previous update
 #   katsu-update status           machine readable state for the menus
 #   katsu-update log [n]          show last n log lines
 
 CONF_DIR="${KATSU_CONF_DIR:-/etc/katsutun}"
 CONF="$CONF_DIR/update.conf"
+REPO_CONF="$CONF_DIR/repo.conf"
 STATE_COMMIT="$CONF_DIR/commit"
 STATE_LATEST="$CONF_DIR/latest"
 STATE_LASTCHECK="$CONF_DIR/lastcheck"
@@ -35,8 +37,7 @@ mkdir -p "$CONF_DIR" "$BACKUP_DIR"
 default_conf() {
 cat > "$CONF" <<'END'
 # KatsuTun auto update settings. Edit with: menu-update
-REPO=Revaa-Cerza/autosc
-BRANCH=main
+# Repo yang diikuti diatur di repo.conf, bukan di sini.
 AUTO_UPDATE=on
 INTERVAL=5
 RESTART_SERVICES=on
@@ -47,17 +48,55 @@ END
 [ -s "$CONF" ] || default_conf
 # shellcheck disable=SC1090
 . "$CONF"
-REPO=${REPO:-Revaa-Cerza/autosc}
-BRANCH=${BRANCH:-main}
 AUTO_UPDATE=${AUTO_UPDATE:-on}
 INTERVAL=${INTERVAL:-5}
 RESTART_SERVICES=${RESTART_SERVICES:-on}
+# Pre-repo.conf installs kept the repository here; keep those values.
+LEGACY_REPO=$REPO
+LEGACY_BRANCH=$BRANCH
+
+# ------------------------------------------------------------- repo identity
+# repo.conf (see data/repo.conf) is the single source of truth for which
+# repository this VPS follows. setup.sh writes it and no update overwrites it,
+# so a fork keeps pointing at itself.
+default_repo_conf() {
+cat > "$REPO_CONF" <<END
+# KatsuTun — sumber script & branding.
+# Ubah lalu jalankan: katsu-update apply --force
+GH_USER="\${GH_USER:-${1:-Revaa-Cerza}}"
+GH_REPO="\${GH_REPO:-${2:-autosc}}"
+GH_BRANCH="\${GH_BRANCH:-${3:-main}}"
+BRAND="\${BRAND:-KatsuTun}"
+REPO_SLUG="\$GH_USER/\$GH_REPO"
+REPO_URL="https://github.com/\$REPO_SLUG"
+ISSUES_URL="\$REPO_URL/issues"
+RAW="https://raw.githubusercontent.com/\$REPO_SLUG/\$GH_BRANCH"
+END
+    chmod 644 "$REPO_CONF"
+}
+if [ ! -s "$REPO_CONF" ]; then
+    default_repo_conf "${LEGACY_REPO%%/*}" "${LEGACY_REPO#*/}" "$LEGACY_BRANCH"
+fi
+# shellcheck disable=SC1090
+. "$REPO_CONF"
+REPO="$REPO_SLUG"
+BRANCH="$GH_BRANCH"
+# Drop the duplicated keys left by older installs so only repo.conf decides.
+grep -q '^\(REPO\|BRANCH\)=' "$CONF" && sed -i '/^REPO=/d;/^BRANCH=/d' "$CONF"
 
 set_conf() {
     if grep -q "^$1=" "$CONF"; then
         sed -i "s|^$1=.*|$1=$2|" "$CONF"
     else
         echo "$1=$2" >> "$CONF"
+    fi
+}
+
+set_repo_conf() {
+    if grep -q "^$1=" "$REPO_CONF"; then
+        sed -i "s|^$1=.*|$1=\"\${$1:-$2}\"|" "$REPO_CONF"
+    else
+        echo "$1=\"\${$1:-$2}\"" >> "$REPO_CONF"
     fi
 }
 
@@ -243,9 +282,16 @@ case "$1" in
         fi ;;
     branch)
         if [[ "$2" =~ ^[A-Za-z0-9._/-]+$ ]]; then
-            set_conf BRANCH "$2"; BRANCH=$2; rm -f "$STATE_LATEST"; log "[INFO] now tracking branch $2"
+            set_repo_conf GH_BRANCH "$2"; BRANCH=$2; rm -f "$STATE_LATEST"; log "[INFO] now tracking branch $2"
         else
             echo "invalid branch name"; exit $E_ERR
+        fi ;;
+    repo)
+        if [[ "$2" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
+            set_repo_conf GH_USER "${2%%/*}"; set_repo_conf GH_REPO "${2#*/}"
+            REPO=$2; rm -f "$STATE_LATEST"; log "[INFO] now tracking repo $2"
+        else
+            echo "use: katsu-update repo <user>/<repo>"; exit $E_ERR
         fi ;;
     restart-services)
         case "$2" in on|off) set_conf RESTART_SERVICES "$2"; log "[INFO] restart services: $2" ;; *) echo "use on|off"; exit $E_ERR ;; esac ;;
@@ -254,5 +300,5 @@ case "$1" in
     rollback)  rollback ;;
     status)    status ;;
     log)       tail -n "${2:-30}" "$LOG" 2>/dev/null ;;
-    *)         sed -n '2,15p' "$0"; exit $E_ERR ;;
+    *)         sed -n '2,17p' "$0"; exit $E_ERR ;;
 esac

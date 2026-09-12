@@ -67,3 +67,5 @@ data/api/docs-index.html        /home/vps/public_html/docs/index.html   644
 # --- misc
 data/index                      /home/vps/public_html/index.html        644
 data/version                    /opt/.ver                               644
+# data/repo.conf is deliberately NOT listed: it is per-VPS state written once by
+# setup.sh. Installing it on every update would reset a fork back to upstream.

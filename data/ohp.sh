@@ -1,4 +1,9 @@
 #!/bin/bash
+# Identitas repo hanya ada di /etc/katsutun/repo.conf (lihat data/repo.conf).
+# katsu-update menulis ulang file itu bila hilang, jadi $RAW selalu terisi.
+[ -r /etc/katsutun/repo.conf ] || katsu-update status >/dev/null 2>&1
+# shellcheck source=data/repo.conf
+. /etc/katsutun/repo.conf
 #Open HTTP Puncher
 #Direct Proxy Squid For OpenVPN TCP
 RED='\e[1;31m'
@@ -21,7 +26,7 @@ Port_OHP='8787';
 
 #Installing ohp Server
 cd 
-wget -O /usr/local/bin/ohp "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/ohp"
+wget -O /usr/local/bin/ohp "$RAW/data/ohp"
 chmod +x /usr/local/bin/ohp
 
 #Buat File OpenVPN TCP OHP
@@ -67,7 +72,7 @@ cd
 cat > /etc/systemd/system/ohp.service <<END
 [Unit]
 Description=Direct Squid Proxy For OpenVPN TCP By KatsuTun
-Documentation=https://github.com/Revaa-Cerza/autosc
+Documentation=$REPO_URL
 Wants=network.target
 After=network.target
 

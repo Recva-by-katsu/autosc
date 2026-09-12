@@ -1,4 +1,9 @@
 #!/bin/bash
+# Identitas repo hanya ada di /etc/katsutun/repo.conf (lihat data/repo.conf).
+# katsu-update menulis ulang file itu bila hilang, jadi $RAW selalu terisi.
+[ -r /etc/katsutun/repo.conf ] || katsu-update status >/dev/null 2>&1
+# shellcheck source=data/repo.conf
+. /etc/katsutun/repo.conf
 ###########- COLOR CODE -##############
 colornow=$(cat /etc/yudhynetwork/theme/color.conf 2>/dev/null)
 NC="\e[0m"
@@ -12,7 +17,6 @@ WH='\033[1;37m'
 API_DIR="/etc/autosc-api"
 KEYS_FILE="$API_DIR/keys.json"
 API_BIN="/usr/local/bin/autosc-api"
-REPO="https://raw.githubusercontent.com/Revaa-Cerza/autosc/main"
 domain=$(cat /etc/xray/domain 2>/dev/null)
 
 api_status=$(systemctl is-active autosc-api 2>/dev/null)
@@ -82,7 +86,7 @@ echo -e "$COLOR1 ${NC}  Pasang sekarang dengan perintah :"
 echo -e "$COLOR1 ${NC}    ${WH}update${NC}"
 echo -e "$COLOR1 ${NC}"
 echo -e "$COLOR1 ${NC}  Atau langsung :"
-echo -e "$COLOR1 ${NC}    ${WH}wget -qO /tmp/i.sh $REPO/data/api/ins-api.sh${NC}"
+echo -e "$COLOR1 ${NC}    ${WH}wget -qO /tmp/i.sh $RAW/data/api/ins-api.sh${NC}"
 echo -e "$COLOR1 ${NC}    ${WH}bash /tmp/i.sh${NC}"
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
 footer
