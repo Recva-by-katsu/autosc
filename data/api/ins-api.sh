@@ -138,7 +138,11 @@ if [ ! -s /etc/autosc-api/keys.json ]; then
 import sys
 sys.path.insert(0, "/usr/local/bin")
 import importlib.util
-spec = importlib.util.spec_from_file_location("autoscapi", "/usr/local/bin/autosc-api")
+from importlib.machinery import SourceFileLoader
+# No .py suffix on the server file, so the loader must be given explicitly.
+_path = "/usr/local/bin/autosc-api"
+spec = importlib.util.spec_from_file_location(
+    "autoscapi", _path, loader=SourceFileLoader("autoscapi", _path))
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 print(mod.create_key("default")["key"])
