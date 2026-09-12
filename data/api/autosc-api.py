@@ -395,8 +395,10 @@ def build_links(proto, user, uuid, cipher="aes-128-gcm"):
             payload = {
                 "v": "2", "ps": user, "add": domain, "port": str(port),
                 "id": uuid, "aid": "0", "net": net, "path": path,
-                "type": "none", "host": "", "tls": security,
+                "type": "none", "host": domain, "tls": security,
             }
+            if security == "tls":
+                payload["sni"] = domain
             blob = json.dumps(payload, separators=(",", ":")).encode("utf-8")
             return "vmess://" + base64.b64encode(blob).decode("ascii")
         return {
@@ -407,20 +409,20 @@ def build_links(proto, user, uuid, cipher="aes-128-gcm"):
 
     if proto == "vless":
         return {
-            "ws_tls": "vless://%s@%s:%s?path=/vlessws&security=tls&encryption=none&type=ws#%s"
-                      % (uuid, domain, tls, user),
-            "ws_none_tls": "vless://%s@%s:%s?path=/vlessws&encryption=none&type=ws#%s"
-                           % (uuid, domain, none, user),
+            "ws_tls": "vless://%s@%s:%s?path=/vlessws&security=tls&encryption=none&type=ws&host=%s&sni=%s#%s"
+                      % (uuid, domain, tls, domain, domain, user),
+            "ws_none_tls": "vless://%s@%s:%s?path=/vlessws&encryption=none&type=ws&host=%s#%s"
+                           % (uuid, domain, none, domain, user),
             "grpc": "vless://%s@%s:%s?mode=gun&security=tls&encryption=none&type=grpc"
-                    "&serviceName=vless-grpc&sni=bug.com#%s" % (uuid, domain, tls, user),
+                    "&serviceName=vless-grpc&sni=%s#%s" % (uuid, domain, tls, domain, user),
         }
 
     if proto == "trojan":
         return {
-            "ws_tls": "trojan://%s@%s:%s?path=/trojan&security=tls&type=ws#%s"
-                      % (uuid, domain, tls, user),
+            "ws_tls": "trojan://%s@%s:%s?path=/trojan&security=tls&type=ws&host=%s&sni=%s#%s"
+                      % (uuid, domain, tls, domain, domain, user),
             "grpc": "trojan://%s@%s:%s?mode=gun&security=tls&type=grpc"
-                    "&serviceName=trojan-grpc&sni=bug.com#%s" % (uuid, domain, tls, user),
+                    "&serviceName=trojan-grpc&sni=%s#%s" % (uuid, domain, tls, domain, user),
         }
 
     if proto == "ss":

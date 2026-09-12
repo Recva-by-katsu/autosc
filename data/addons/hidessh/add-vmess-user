@@ -77,7 +77,7 @@ grpc=`cat<<EOF
       "add": "${domain}",
       "aid": "0",
       "alpn": "",
-      "host": "",
+      "host": "${domain}",
       "id": "${uuid}",
       "net": "grpc",
       "path": "vmess-grpc",
