@@ -80,25 +80,7 @@ fi
 
 
 function updatews(){
-clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}            ${WH}• UPDATE SCRIPT VPS •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}  $COLOR1[INFO]${NC} Check for Script updates"
-sleep 2
-wget -q -O /root/update.sh "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/update.sh" && chmod +x /root/update.sh
-sleep 2
-/root/./update.sh
-rm /root/update.sh
-#rm /opt/.ver
-#version_up=$( curl -sS https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/version)
-#echo "$version_up" > /opt/.ver
-
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌────────────────────── BY ───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}• LawNetwork •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+update
 echo ""
 read -n 1 -s -r -p "  Press any key to go back!"
 menu
@@ -115,7 +97,9 @@ cekup=`uptime -p | grep -ow "day"`
 IPVPS=$(cat /etc/lukman/ip)
 sensored_ip=$(echo $IPVPS | sed 's/\.[0-9]*\.[0-9]*$/.*.*/')
 
-serverV=$( curl -sS https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/version); ##### USING EXTERNAL LINK #####
+# Update state is refreshed by the katsu-update cron; no network call here.
+eval "$(katsu-update status 2>/dev/null | grep -E '^(STATE|AUTO_UPDATE|LATEST)=')"
+if [[ "$AUTO_UPDATE" == "on" ]]; then status_upd="${COLOR1}AUTO${NC}"; else status_upd="${RED}MANUAL${NC}"; fi
 
 uis="${COLOR1}Premium Version$NC"
 echo -e "$COLOR1 $NC ${WH}User Roles     ${COLOR1}: ${WH}$uis"
@@ -139,15 +123,15 @@ echo -e "  ${WH}[${COLOR1}03${WH}]${NC} ${COLOR1}• ${WH}VLESS   ${WH}[${COLOR1
 echo -e "  ${WH}[${COLOR1}04${WH}]${NC} ${COLOR1}• ${WH}TROJAN  ${WH}[${COLOR1}${status_xray}${WH}]   ${WH}[${COLOR1}10${WH}]${NC} ${COLOR1}• ${WH}RENEW CERT       $COLOR1 $NC"  
 echo -e "  ${WH}[${COLOR1}05${WH}]${NC} ${COLOR1}• ${WH}SS WS   ${WH}[${COLOR1}ON${WH}]   ${WH}[${COLOR1}11${WH}]${NC} ${COLOR1}• ${WH}SETTINGS ${WH}[${COLOR1}Menu${WH}]  $COLOR1 $NC"
 echo -e "  ${WH}[${COLOR1}06${WH}]${NC} ${COLOR1}• ${WH}SET DNS ${WH}[${COLOR1}Menu${WH}] ${WH}[${COLOR1}12${WH}]${NC} ${COLOR1}• ${WH}INFO     ${WH}[${COLOR1}Menu${WH}]  $COLOR1 $NC"
-echo -e "  ${WH}[${COLOR1}13${WH}]${NC} ${COLOR1}• ${WH}API     ${WH}[${COLOR1}${status_api}${WH}]${NC}                            $COLOR1 $NC"
+echo -e "  ${WH}[${COLOR1}13${WH}]${NC} ${COLOR1}• ${WH}API     ${WH}[${COLOR1}${status_api}${WH}]   ${WH}[${COLOR1}14${WH}]${NC} ${COLOR1}• ${WH}UPDATE   ${WH}[${COLOR1}${status_upd}${WH}]  $COLOR1 $NC"
 echo ""
 echo -e "  ${WH}[${COLOR1}00${WH}]${NC} ${COLOR1}• ${WH}EXIT  $COLOR1 $NC"
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
 myver="$(cat /opt/.ver)"
 
-if [[ $serverV > $myver ]]; then
+if [[ "$STATE" == "available" ]]; then
 echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 $NC ${WH}[${COLOR1}100${WH}]${NC} ${COLOR1}• ${RED}UPDATE AUTOSCRIPT TO THE NEWEST ${WH}v$serverV${NC} " 
+echo -e "$COLOR1 $NC ${WH}[${COLOR1}100${WH}]${NC} ${COLOR1}• ${RED}UPDATE KATSUTUN TO THE NEWEST ${WH}${LATEST}${NC} " 
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
 ltsver="『${COLOR1}Update Available${WH}』"
 up2u="updatews"
@@ -157,11 +141,11 @@ up2u="menu"
 fi
 echo -e "$COLOR1┌─────────────────────────────────────────────────┐$NC"
 echo -e "$COLOR1 $NC ${WH}Version     ${COLOR1}:${WH} $(cat /opt/.ver) $ltsver${NC}"
-echo -e "$COLOR1 $NC ${WH}Client Name ${COLOR1}: ${WH}https://t.me/Lawvpn/ 🇮🇩${NC}"
+echo -e "$COLOR1 $NC ${WH}Client Name ${COLOR1}: ${WH}https://github.com/Revaa-Cerza/autosc 🇮🇩${NC}"
 echo -e "$COLOR1 $NC ${WH}License     ${COLOR1}: ${WH}Lifetime${NC}"
 echo -e "$COLOR1└─────────────────────────────────────────────────┘$NC"
 echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}• LawNetwork •${NC}                 $COLOR1 $NC"
+echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
 echo -e ""
 dgrade() {
@@ -183,6 +167,7 @@ case $opt in
 11) clear ; menu-set ;;
 12) clear ; info ;;
 13) clear ; menu-api ;;
+14) clear ; menu-update ;;
 99) dgrade ;;
 100) clear ; $up2u ;;
 x) exit ;;

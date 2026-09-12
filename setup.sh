@@ -3,7 +3,7 @@
 dateFromServer=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
 biji=`date +"%Y-%m-%d" -d "$dateFromServer"`
 
-############# LawNET #############
+############# KatsuTun #############
 #Text Coloring
 clear
 red='\e[1;31m'
@@ -16,7 +16,7 @@ tyblue() { echo -e "\\033[36;1m${*}\\033[0m"; }
 yellow() { echo -e "\\033[33;1m${*}\\033[0m"; }
 green() { echo -e "\\033[32;1m${*}\\033[0m"; }
 red() { echo -e "\\033[31;1m${*}\\033[0m"; }
-############# LawNET #############
+############# KatsuTun #############
 
 #System version number
 cd
@@ -38,13 +38,13 @@ fi
 mkdir -p /etc/xray
 
 clear
-echo -e "[ ${tyblue}NOTE${NC} ] AUTO INSTALL SCRIPT.... "
+echo -e "[ ${tyblue}NOTE${NC} ] KATSUTUN AUTO INSTALL SCRIPT.... "
 sleep 1
 echo -e "[ ${tyblue}NOTE${NC} ] Multi path, Multi port, support debian 10 , Ubuntu 20-18"
 sleep 2
-echo -e "[ ${green}INFO${NC} ] By LawNET"
+echo -e "[ ${green}INFO${NC} ] By KatsuTun"
 sleep 1
-echo -e "[ ${green}INFO${NC} ] t.me/law_sky"
+echo -e "[ ${green}INFO${NC} ] github.com/Revaa-Cerza/autosc"
 sleep 5
 
 echo ""
@@ -115,7 +115,7 @@ wget -q https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/dependenc
 rm dependencies.sh
 clear
 
-############# LawNET #############
+############# KatsuTun #############
 #THEME RED
 cat <<EOF>> /etc/yudhynetwork/theme/red
 BG : \E[40;1;41m
@@ -150,7 +150,7 @@ EOF
 cat <<EOF>> /etc/yudhynetwork/theme/color.conf
 blue
 EOF
-############# LawNET #############
+############# KatsuTun #############
 
 #install ssh ovpn
 echo -e "${tyblue}.------------------------------------------.${NC}"
@@ -195,34 +195,28 @@ sleep 2
 clear
 wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/api/ins-api.sh && chmod +x ins-api.sh && ./ins-api.sh
 rm -f ins-api.sh
-#Download Extra Menu
+#Install newest version straight from the latest GitHub commit + auto update
 echo -e "${tyblue}.------------------------------------------.${NC}"
-echo -e "${tyblue}|           DOWNLOAD EXTRA MENU            |${NC}"
+echo -e "${tyblue}|   INSTALL LATEST VERSION & AUTO UPDATE   |${NC}"
 echo -e "${tyblue}'------------------------------------------'${NC}"
 sleep 2
-wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/update.sh && chmod +x update.sh && ./update.sh
+wget -q -O /usr/bin/katsu-update https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/katsu-update.sh && chmod +x /usr/bin/katsu-update
+# Pulls every menu/helper listed in data/manifest.txt from the newest commit,
+# writes /opt/.ver and enables the auto update cron (manage with menu-update).
+katsu-update apply --force
+katsu-update enable
+# Telegram backup sender (used by menu-backup); previously installed by update.sh
+mkdir -p /etc/lukman
+wget -q -O /etc/lukman/dependencies.sh https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/v1.1.0/dependencies.sh; bash /etc/lukman/dependencies.sh
+curl -s ipinfo.io/ip > /etc/lukman/ip
+curl -s ipinfo.io/org | cut -d " " -f 2-10 > /etc/lukman/isp
+curl -s ipinfo.io/city > /etc/lukman/city
 clear
 
-############# LawNET #############
+############# KatsuTun #############
+# /root/.profile is installed by katsu-update from data/profile (see manifest).
 
-cat> /root/.profile << END
-# ~/.profile: executed by Bourne-compatible login shells.
-
-if [ "$BASH" ]; then
-  if [ -f ~/.bashrc ]; then
-    . ~/.bashrc
-  fi
-fi
-
-mesg n || true
-clear
-#menu
-vnstat -d
-vnstat -m
-END
-chmod 644 /root/.profile
-
-############# LawNET #############
+############# KatsuTun #############
 
 if [ -f "/root/log-install.txt" ]; then
 rm /root/log-install.txt > /dev/null 2>&1
@@ -234,8 +228,6 @@ if [ ! -f "/etc/log-create-user.log" ]; then
 echo "Log All Account " > /etc/log-create-user.log
 fi
 history -c
-serverV=$( curl -sS https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/version  )
-echo $serverV > /opt/.ver
 aureb=$(cat /home/re_otm)
 b=11
 if [ $aureb -gt $b ]
@@ -246,7 +238,7 @@ gg="AM"
 fi
 curl -sS ifconfig.me > /etc/myipvps
 
-############# LawNET #############
+############# KatsuTun #############
 
 echo " "
 echo "Installation has been completed!!"
@@ -306,6 +298,8 @@ echo "   - Full Orders For Various Services" | tee -a log-install.txt
 echo "   - REST API                : https://$pp/api" | tee -a log-install.txt
 echo "   - API Documentation       : https://$pp/docs/" | tee -a log-install.txt
 echo "   - API Key Management      : menu -> 13 (or: menu-api)" | tee -a log-install.txt
+echo "   - Script Version          : v$(cat /opt/.ver) ($(cut -c1-7 /etc/katsutun/commit 2>/dev/null))" | tee -a log-install.txt
+echo "   - Auto Update             : [ON] every 5 min from GitHub (menu -> 14)" | tee -a log-install.txt
 echo ""  | tee -a log-install.txt
 echo "=========================[SCRIPT PREMIUM]========================"
 echo ""
@@ -316,25 +310,25 @@ echo -e "    ${tyblue}'------------------------------------------'${NC}"
 
 rm /root/cf.sh >/dev/null 2>&1
 rm /root/setup.sh >/dev/null 2>&1
-rm /root/insshws.sh 
-rm /root/update.sh
+rm /root/insshws.sh >/dev/null 2>&1
 rm /root/lawsc >/dev/null 2>&1
 
 echo ""
 echo -e "Setting up autorefresh on xray user login"
 #echo -ne "Choose between 1-30 minutes: "; read afresh
-wget -q -O /usr/bin/clear-log https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/addons/clear-log
-chmod +x /usr/bin/clear-log; cd
+cd
 wget -q https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/addons/crontab.sh
 chmod +x crontab.sh; ./crontab.sh; rm crontab.sh
+# crontab.sh rewrites /etc/crontab only; the auto update lives in /etc/cron.d
+katsu-update cron
 
-echo "#!/bin/bash
-bash <(curl -L -s https://s.id/netflixchecker) -E -M 4" > /usr/bin/regionchecker
+cat <<EOF > /usr/bin/regionchecker
+#!/bin/bash
+echo "0" | bash <(curl -L -a https://raw.githubusercontent.com/lmc999/RegionRestrictionCheck/main/check.sh) -E en -M 4
+read -n 1 -s -r -p "  Press any key to go back"
+menu-set
+EOF
 chmod +x /usr/bin/regionchecker
-
-echo "Changing the version to the oldest so you can update manually.."
-echo "0.0.1" > /opt/.ver; sleep 2
-echo "Changing the version to the oldest so you can update manually.. done"
 
 if [ -s /etc/autosc-api/first-key.txt ]; then
 echo ""

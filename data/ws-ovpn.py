@@ -21,7 +21,7 @@ BUFLEN = 4096 * 4
 TIMEOUT = 60
 DEFAULT_HOST = '127.0.0.1:1194'
 RESPONSE = (
-    'HTTP/1.1 101 WebSocket <font color="red">LawNetwork</font>\r\n'
+    'HTTP/1.1 101 WebSocket <font color="red">KatsuTun</font>\r\n'
     'Content-Length: 104857600000\r\n\r\n'
 )
 

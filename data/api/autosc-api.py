@@ -708,7 +708,7 @@ def dispatch(method, path, body, key_entry):
 
     # /health and /openapi.json are handled before auth in the request handler.
     if not parts:
-        return 200, {"name": "autoscript-api", "version": VERSION, "docs": "/docs/"}
+        return 200, {"name": "katsutun-api", "version": VERSION, "docs": "/docs/"}
 
     if parts[0] == "system":
         if len(parts) == 2 and parts[1] == "info" and method == "GET":

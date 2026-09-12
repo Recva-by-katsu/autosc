@@ -8,7 +8,7 @@ RED="\033[0;31m"
 COLOR1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "TEXT" | cut -d: -f2|sed 's/ //g')"
 COLBG1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "BG" | cut -d: -f2|sed 's/ //g')"  
 WH='\033[1;37m'                  
-###########- LawNET -##########
+###########- KatsuTun -##########
 
 infos() {
 echo -e "
@@ -35,7 +35,7 @@ How to restore:
 3. Paste the backup link from google drive
 4. Done!
 ====================================================================================
-Chat me at telegram @Law_Sky if you encounter any errors
+Report errors at github.com/Revaa-Cerza/autosc/issues
 Thank you for using this script
 ===================================================================================="
 echo ""
@@ -57,7 +57,7 @@ echo -e " $COLOR1 $NC                                               $COLOR1 $NC"
 echo -e " $COLOR1 $NC   ${WH}[${COLOR1}00${WH}]${NC} ${COLOR1}• ${WH}GO BACK${NC}                              $COLOR1 $NC"
 echo -e " $COLOR1└───────────────────────────────────────────────┘${NC}"
 echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}• LawNetwork •${NC}                 $COLOR1 $NC"
+echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
 echo -e ""
 echo -ne " ${WH}Select menu ${COLOR1}: ${WH}"; read opt

@@ -1,7 +1,7 @@
 #!/bin/bash
 dateFromServer=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
 biji=`date +"%Y-%m-%d" -d "$dateFromServer"`
-############ LawNET #############
+############ KatsuTun #############
 clear
 red='\e[1;31m'
 green='\e[0;32m'

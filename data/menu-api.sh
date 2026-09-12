@@ -7,7 +7,7 @@ GREEN="\033[0;32m"
 COLOR1="$(cat /etc/yudhynetwork/theme/$colornow 2>/dev/null | grep -w "TEXT" | cut -d: -f2|sed 's/ //g')"
 COLBG1="$(cat /etc/yudhynetwork/theme/$colornow 2>/dev/null | grep -w "BG" | cut -d: -f2|sed 's/ //g')"
 WH='\033[1;37m'
-###########- LawNET -##########
+###########- KatsuTun -##########
 
 API_DIR="/etc/autosc-api"
 KEYS_FILE="$API_DIR/keys.json"
@@ -68,7 +68,7 @@ echo -e "$COLOR1└────────────────────�
 
 footer() {
 echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}• LawNetwork •${NC}                 $COLOR1 $NC"
+echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
 }
 

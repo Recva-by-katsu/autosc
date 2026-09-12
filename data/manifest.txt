@@ -1,0 +1,69 @@
+# KatsuTun update manifest
+# Format : <repo path> <install path> <mode> [service to restart when changed]
+# Lines starting with # are ignored. Files are fetched from the exact commit
+# being installed, so every entry here is always consistent with the others.
+
+# --- updater & main menu
+data/katsu-update.sh            /usr/bin/katsu-update           755
+data/update.sh                  /usr/bin/update                 755
+data/menu.sh                    /usr/bin/menu                   755
+data/menu-update.sh             /usr/bin/menu-update            755
+
+# --- panel menus
+data/menu-ssh.sh                /usr/bin/menu-ssh               755
+data/menu-vmess.sh              /usr/bin/menu-vmess             755
+data/menu-vless.sh              /usr/bin/menu-vless             755
+data/menu-trojan.sh             /usr/bin/menu-trojan            755
+data/menu-ss.sh                 /usr/bin/menu-ss                755
+data/menu-dns.sh                /usr/bin/menu-dns               755
+data/menu-theme.sh              /usr/bin/menu-theme             755
+data/menu-backup.sh             /usr/bin/menu-backup            755
+data/menu-set.sh                /usr/bin/menu-set               755
+data/menu-api.sh                /usr/bin/menu-api               755
+data/menu-bot.sh                /usr/bin/menu-bot               755
+data/menu-ip.sh                 /usr/bin/menu-ip                755
+data/menu-tor.sh                /usr/bin/menu-tor               755
+data/menu-tcp.sh                /usr/bin/menu-tcp               755
+data/menu-speedtest.sh          /usr/bin/mspeed                 755
+data/menu-bandwith.sh           /usr/bin/mbandwith              755
+data/info.sh                    /usr/bin/info                   755
+data/restart.sh                 /usr/bin/restart                755
+data/autoboot.sh                /usr/bin/autoboot               755
+data/rebootvps.sh               /usr/bin/rebootvps              755
+data/runcheck                   /usr/bin/runcheck               755
+
+# --- helpers & cron jobs
+data/xp.sh                      /usr/bin/xp                     755
+data/auto-set.sh                /usr/bin/auto-set               755
+data/crt.sh                     /usr/bin/crtxray                755
+data/bbr.sh                     /usr/bin/bbr                    755
+data/addons/clear-log           /usr/bin/clear-log              755
+data/v1.1.0/backup.sh           /usr/bin/backup                 755
+data/v1.1.0/restore.sh          /usr/bin/restore                755
+data/v1.1.0/autobackup.sh       /usr/bin/autobackup             755
+data/v1.1.0/bset.sh             /usr/bin/backup_setting         755
+
+# --- hidessh plugin
+data/addons/hidessh/hidessh             /usr/bin/hidessh                755
+data/addons/hidessh/newhide/add-ssh-user /usr/local/bin/add-ssh-user    755
+data/addons/hidessh/newhide/del-ssh-user /usr/local/bin/del-ssh-user    755
+
+# --- login profile
+data/profile                    /root/.profile                  644
+data/profile2                   /root/profile/profile2          755
+data/wc                         /root/profile/wc                755
+data/art                        /root/profile/art               755
+
+# --- websocket proxies (restarted only when the file actually changes)
+data/dropbear-ws.py             /usr/local/bin/ws-dropbear      755  ws-dropbear
+data/ws-stunnel                 /usr/local/bin/ws-stunnel       755  ws-stunnel
+data/ws-ovpn.py                 /usr/local/bin/ws-ovpn          755  ws-ovpn
+
+# --- REST API & docs
+data/api/autosc-api.py          /usr/local/bin/autosc-api               755  autosc-api
+data/api/openapi.json           /usr/local/lib/autosc-api/openapi.json  644
+data/api/docs-index.html        /home/vps/public_html/docs/index.html   644
+
+# --- misc
+data/index                      /home/vps/public_html/index.html        644
+data/version                    /opt/.ver                               644
