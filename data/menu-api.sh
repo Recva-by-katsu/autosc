@@ -12,6 +12,7 @@ WH='\033[1;37m'
 API_DIR="/etc/autosc-api"
 KEYS_FILE="$API_DIR/keys.json"
 API_BIN="/usr/local/bin/autosc-api"
+REPO="https://raw.githubusercontent.com/Revaa-Cerza/autosc/main"
 domain=$(cat /etc/xray/domain 2>/dev/null)
 
 api_status=$(systemctl is-active autosc-api 2>/dev/null)
@@ -76,7 +77,13 @@ if [ ! -f "$API_BIN" ]; then
 header
 echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
 echo -e "$COLOR1 ${NC}  ${RED}[ERROR]${NC} API belum terpasang."
-echo -e "$COLOR1 ${NC}  Jalankan ${WH}update${NC} untuk memasang API."
+echo -e "$COLOR1 ${NC}"
+echo -e "$COLOR1 ${NC}  Pasang sekarang dengan perintah :"
+echo -e "$COLOR1 ${NC}    ${WH}update${NC}"
+echo -e "$COLOR1 ${NC}"
+echo -e "$COLOR1 ${NC}  Atau langsung :"
+echo -e "$COLOR1 ${NC}    ${WH}wget -qO /tmp/i.sh $REPO/data/api/ins-api.sh${NC}"
+echo -e "$COLOR1 ${NC}    ${WH}bash /tmp/i.sh${NC}"
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
 footer
 echo ""

@@ -108,6 +108,9 @@ wget -q -O /usr/bin/crtxray https://raw.githubusercontent.com/Revaa-Cerza/autosc
 
 # 1.2.0 - REST API + documentation site
 cd; clear
+# Install menu-api first and unconditionally: menu.sh entry 13 calls it, so a
+# failed API install must not leave the main menu pointing at a missing command.
+wget -q -O /usr/bin/menu-api "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/menu-api.sh" && chmod +x /usr/bin/menu-api
 wget -q -O /tmp/ins-api.sh https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/api/ins-api.sh
 [ -s /tmp/ins-api.sh ] && bash /tmp/ins-api.sh
 rm -f /tmp/ins-api.sh
