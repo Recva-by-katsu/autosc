@@ -25,7 +25,13 @@ fi
 apicall() {
     python3 - "$@" <<'PY'
 import importlib.util, json, sys
-spec = importlib.util.spec_from_file_location("autoscapi", "/usr/local/bin/autosc-api")
+from importlib.machinery import SourceFileLoader
+
+# The API server has no .py suffix, so the loader must be named explicitly:
+# spec_from_file_location() alone returns a spec with loader=None for it.
+_path = "/usr/local/bin/autosc-api"
+spec = importlib.util.spec_from_file_location(
+    "autoscapi", _path, loader=SourceFileLoader("autoscapi", _path))
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 
