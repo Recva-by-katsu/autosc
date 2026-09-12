@@ -12,9 +12,9 @@ ver=$VERSION_ID
 country=ID
 state=Jawa-Tengah 
 locality=Pati
-organization=LawNET
-organizationalunit=LawNET
-commonname=LawNET
+organization=KatsuTun
+organizationalunit=KatsuTun
+commonname=KatsuTun
 email=plukman123@gmail.com
 
 # simple password minimal

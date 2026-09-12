@@ -1,7 +1,34 @@
-# Script Autoinstaller for SSHws and Xray
+# KatsuTun — Script Autoinstaller for SSHws and Xray
 Mendukung Debian 10 dan Ubuntu 20, silakan yang pakai OS versi lain, rebuild ke versi OS yang didukung (rekomendasi Ubuntu 20)
 
 NB: These codes are totally free, open source, and all belongs to ©Yudhynet. Me personally just completed some codes
+
+## Versi & Auto Update
+
+Installer selalu memasang **commit terbaru** dari branch `main` repo ini, jadi
+VPS baru langsung mendapat versi paling baru tanpa perlu `update` manual.
+
+Setelah instalasi, `katsu-update` mengecek GitHub setiap 5 menit (cron di
+`/etc/cron.d/katsu-update`). Jika ada commit baru, semua file yang terdaftar di
+`data/manifest.txt` dipasang ulang dari commit tersebut — hanya file yang
+berubah yang ditulis, dan service terkait (ws-stunnel, ws-dropbear, ws-ovpn,
+autosc-api) di-restart hanya bila file-nya berubah.
+
+Kelola lewat `menu` → `14` atau perintah `menu-update`:
+
+```
+[01] CHECK UPDATE        [06] SET BRANCH
+[02] UPDATE NOW          [07] UPDATE LOG
+[03] AUTO UPDATE ON/OFF  [08] ROLLBACK
+[04] SET INTERVAL        [09] GITHUB TOKEN
+[05] AUTO RESTART ON/OFF
+```
+
+CLI: `katsu-update check|apply|enable|disable|interval <menit>|branch <nama>|rollback|status|log`.
+Konfigurasi ada di `/etc/katsutun/update.conf`, log di `/etc/katsutun/update.log`.
+
+> Menambah file baru ke script? Daftarkan di `data/manifest.txt`
+> (`<path repo> <path install> <mode> [service]`) supaya ikut terpasang otomatis.
 
 ## Installer
 ### Pilih salah satu dari kedua link di bawah

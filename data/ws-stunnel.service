@@ -1,5 +1,5 @@
 [Unit]
-Description=SSH Over Websocket Python By LawNET
+Description=SSH Over Websocket Python By KatsuTun
 Documentation=https://google.com
 After=network.target nss-lookup.target
 

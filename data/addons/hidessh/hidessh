@@ -64,7 +64,7 @@ echo -e " $COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}] ${COLOR1}• ${WH}Selecting a
 sleep 2
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
 echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}• LawNetwork •${NC}                  $COLOR1 $NC"
+echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                  $COLOR1 $NC"
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
 cd
 echo ""
@@ -106,7 +106,7 @@ echo -e " $COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}] ${COLOR1}• ${WH}Selecting a
 sleep 2
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
 echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}• LawNetwork •${NC}                  $COLOR1 $NC"
+echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                  $COLOR1 $NC"
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
 cd
 echo ""
@@ -135,7 +135,7 @@ echo -e " $COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}] ${COLOR1}• ${WH}Plugin dele
 echo ""; sleep 2
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
 echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}• LawNetwork •${NC}                  $COLOR1 $NC"
+echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                  $COLOR1 $NC"
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
 echo ""
 echo "" > /etc/hidetemp/store.txt
@@ -159,7 +159,7 @@ echo -e " $COLOR1 $NC"
 echo -e " $COLOR1 ${NC}  ${WH}[${COLOR1}00${WH}]${NC} ${COLOR1}• ${WH}GO BACK$NC"
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
 echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}• LawNetwork •${NC}                  $COLOR1 $NC"
+echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                  $COLOR1 $NC"
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
 echo ""
 echo -ne " ${WH}Select menu ${COLOR1}: ${WH}"; read opt

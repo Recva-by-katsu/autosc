@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Autoscript VPS API",
+    "title": "KatsuTun API",
     "version": "1.0.0",
     "description": "REST API untuk seluruh fitur panel autoscript: akun SSH, VMess, VLESS, Trojan dan Shadowsocks, informasi sistem, kontrol service, serta manajemen API key.\n\n## Autentikasi\n\nSemua endpoint (kecuali `/health` dan `/openapi.json`) memerlukan API key. Kirim lewat salah satu header berikut:\n\n```\nX-API-Key: asc_xxxxxxxxxxxxxxxxxxxx\nAuthorization: Bearer asc_xxxxxxxxxxxxxxxxxxxx\n```\n\nBuat key pertama di VPS lewat menu `API` (`menu` → `13`) atau perintah `menu-api`. Key hanya ditampilkan sekali saat dibuat — simpan baik-baik.\n\n## Base URL\n\n```\nhttps://DOMAIN-ANDA/api\n```\n\n## Catatan umum\n\n- `expired` selalu dalam satuan **hari** dihitung dari sekarang.\n- `username` wajib 1-32 karakter `a-z A-Z 0-9 _`.\n- Untuk VMess/VLESS/Trojan/SS, bila `uuid` tidak diisi maka akan dibuat acak.\n- Menambah atau menghapus akun Xray otomatis me-restart service `xray`.",
     "license": { "name": "Mengikuti lisensi repository autoscript" }

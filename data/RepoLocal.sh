@@ -17,5 +17,5 @@ deb http://kartolo.sby.datautama.net.id/ubuntu/ focal-proposed main restricted u
 echo "Repositories for Ubuntu 20.04 have been added."
 else
 echo ""
-echo "[ Warning ] This OS $os $version is not supported, contact t.me/Law_sky for more info."
+echo "[ Warning ] This OS $os $version is not supported, contact github.com/Revaa-Cerza/autosc for more info."
 fi
