@@ -187,6 +187,14 @@ echo -e "${tyblue}'------------------------------------------'${NC}"
 sleep 2
 clear
 wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/set-br.sh && chmod +x set-br.sh && ./set-br.sh
+#Install REST API & Documentation
+echo -e "${tyblue}.------------------------------------------.${NC}"
+echo -e "${tyblue}|      PROCESS INSTALLED API & DOCS        |${NC}"
+echo -e "${tyblue}'------------------------------------------'${NC}"
+sleep 2
+clear
+wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/api/ins-api.sh && chmod +x ins-api.sh && ./ins-api.sh
+rm -f ins-api.sh
 #Download Extra Menu
 echo -e "${tyblue}.------------------------------------------.${NC}"
 echo -e "${tyblue}|           DOWNLOAD EXTRA MENU            |${NC}"
@@ -295,6 +303,9 @@ echo "   - VPS Settings" | tee -a log-install.txt
 echo "   - Admin Control" | tee -a log-install.txt
 echo "   - Backup & Restore Data" | tee -a log-install.txt
 echo "   - Full Orders For Various Services" | tee -a log-install.txt
+echo "   - REST API                : https://$pp/api" | tee -a log-install.txt
+echo "   - API Documentation       : https://$pp/docs/" | tee -a log-install.txt
+echo "   - API Key Management      : menu -> 13 (or: menu-api)" | tee -a log-install.txt
 echo ""  | tee -a log-install.txt
 echo "=========================[SCRIPT PREMIUM]========================"
 echo ""
@@ -324,6 +335,20 @@ chmod +x /usr/bin/regionchecker
 echo "Changing the version to the oldest so you can update manually.."
 echo "0.0.1" > /opt/.ver; sleep 2
 echo "Changing the version to the oldest so you can update manually.. done"
+
+if [ -s /etc/autosc-api/first-key.txt ]; then
+echo ""
+echo "=========================[ API ACCESS ]========================="
+echo " Your first API key (shown once, also saved in"
+echo " /etc/autosc-api/first-key.txt):"
+echo ""
+echo "   $(cat /etc/autosc-api/first-key.txt)"
+echo ""
+echo " Docs : https://$pp/docs/"
+echo " Usage: curl -H \"X-API-Key: <key>\" https://$pp/api/system/info"
+echo " Manage keys later with: menu-api"
+echo "================================================================"
+fi
 
 echo ""
 echo -e "   ${tyblue}Your VPS Will Be Automatical Reboot In 10 seconds${NC}"

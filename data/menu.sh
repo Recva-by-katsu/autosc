@@ -44,6 +44,14 @@ else
     status_xray="${RED}OFF${NC}"
 fi
 
+# // Autoscript REST API
+api=$( systemctl is-active autosc-api 2>/dev/null )
+if [[ $api == "active" ]]; then
+    status_api="${COLOR1}ON${NC}"
+else
+    status_api="${RED}OFF${NC}"
+fi
+
 function add-host(){
 clear
 echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
@@ -131,6 +139,7 @@ echo -e "  ${WH}[${COLOR1}03${WH}]${NC} ${COLOR1}• ${WH}VLESS   ${WH}[${COLOR1
 echo -e "  ${WH}[${COLOR1}04${WH}]${NC} ${COLOR1}• ${WH}TROJAN  ${WH}[${COLOR1}${status_xray}${WH}]   ${WH}[${COLOR1}10${WH}]${NC} ${COLOR1}• ${WH}RENEW CERT       $COLOR1 $NC"  
 echo -e "  ${WH}[${COLOR1}05${WH}]${NC} ${COLOR1}• ${WH}SS WS   ${WH}[${COLOR1}ON${WH}]   ${WH}[${COLOR1}11${WH}]${NC} ${COLOR1}• ${WH}SETTINGS ${WH}[${COLOR1}Menu${WH}]  $COLOR1 $NC"
 echo -e "  ${WH}[${COLOR1}06${WH}]${NC} ${COLOR1}• ${WH}SET DNS ${WH}[${COLOR1}Menu${WH}] ${WH}[${COLOR1}12${WH}]${NC} ${COLOR1}• ${WH}INFO     ${WH}[${COLOR1}Menu${WH}]  $COLOR1 $NC"
+echo -e "  ${WH}[${COLOR1}13${WH}]${NC} ${COLOR1}• ${WH}API     ${WH}[${COLOR1}${status_api}${WH}]${NC}                            $COLOR1 $NC"
 echo ""
 echo -e "  ${WH}[${COLOR1}00${WH}]${NC} ${COLOR1}• ${WH}EXIT  $COLOR1 $NC"
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
@@ -173,6 +182,7 @@ case $opt in
 10) clear ; crtxray ;;
 11) clear ; menu-set ;;
 12) clear ; info ;;
+13) clear ; menu-api ;;
 99) dgrade ;;
 100) clear ; $up2u ;;
 x) exit ;;

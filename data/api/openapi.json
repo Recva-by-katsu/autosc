@@ -1,0 +1,627 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Autoscript VPS API",
+    "version": "1.0.0",
+    "description": "REST API untuk seluruh fitur panel autoscript: akun SSH, VMess, VLESS, Trojan dan Shadowsocks, informasi sistem, kontrol service, serta manajemen API key.\n\n## Autentikasi\n\nSemua endpoint (kecuali `/health` dan `/openapi.json`) memerlukan API key. Kirim lewat salah satu header berikut:\n\n```\nX-API-Key: asc_xxxxxxxxxxxxxxxxxxxx\nAuthorization: Bearer asc_xxxxxxxxxxxxxxxxxxxx\n```\n\nBuat key pertama di VPS lewat menu `API` (`menu` → `13`) atau perintah `menu-api`. Key hanya ditampilkan sekali saat dibuat — simpan baik-baik.\n\n## Base URL\n\n```\nhttps://DOMAIN-ANDA/api\n```\n\n## Catatan umum\n\n- `expired` selalu dalam satuan **hari** dihitung dari sekarang.\n- `username` wajib 1-32 karakter `a-z A-Z 0-9 _`.\n- Untuk VMess/VLESS/Trojan/SS, bila `uuid` tidak diisi maka akan dibuat acak.\n- Menambah atau menghapus akun Xray otomatis me-restart service `xray`.",
+    "license": { "name": "Mengikuti lisensi repository autoscript" }
+  },
+  "servers": [
+    { "url": "/api", "description": "Server ini" }
+  ],
+  "tags": [
+    { "name": "System", "description": "Informasi VPS dan kontrol service" },
+    { "name": "SSH", "description": "Akun SSH / OpenVPN / Websocket" },
+    { "name": "VMess", "description": "Akun Xray VMess" },
+    { "name": "VLESS", "description": "Akun Xray VLESS" },
+    { "name": "Trojan", "description": "Akun Xray Trojan" },
+    { "name": "Shadowsocks", "description": "Akun Xray Shadowsocks" },
+    { "name": "API Keys", "description": "Manajemen API key" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key yang dibuat lewat menu API di VPS."
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "API key yang sama, dikirim sebagai bearer token."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string", "example": "user already exists" },
+          "detail": { "type": "string", "nullable": true, "example": "vmess user budi" }
+        }
+      },
+      "AccountUser": {
+        "type": "object",
+        "properties": {
+          "username": { "type": "string", "example": "budi" },
+          "expired": { "type": "string", "format": "date", "example": "2026-10-12" },
+          "days_left": { "type": "integer", "nullable": true, "example": 30 }
+        }
+      },
+      "AccountList": {
+        "type": "object",
+        "properties": {
+          "protocol": { "type": "string", "example": "vmess" },
+          "total": { "type": "integer", "example": 2 },
+          "users": { "type": "array", "items": { "$ref": "#/components/schemas/AccountUser" } }
+        }
+      },
+      "CreateXrayAccount": {
+        "type": "object",
+        "required": ["username", "expired"],
+        "properties": {
+          "username": {
+            "type": "string", "pattern": "^[a-zA-Z0-9_]{1,32}$", "example": "budi",
+            "description": "1-32 karakter a-z A-Z 0-9 _"
+          },
+          "expired": {
+            "type": "integer", "minimum": 1, "maximum": 3650, "example": 30,
+            "description": "Masa aktif dalam hari"
+          },
+          "uuid": {
+            "type": "string", "nullable": true, "example": "",
+            "description": "UUID/password. Kosongkan agar dibuat acak."
+          }
+        }
+      },
+      "CreateSsAccount": {
+        "allOf": [
+          { "$ref": "#/components/schemas/CreateXrayAccount" },
+          {
+            "type": "object",
+            "properties": {
+              "method": {
+                "type": "string",
+                "enum": ["aes-128-gcm", "aes-256-gcm", "chacha20-poly1305"],
+                "default": "aes-128-gcm"
+              }
+            }
+          }
+        ]
+      },
+      "XrayAccount": {
+        "type": "object",
+        "properties": {
+          "protocol": { "type": "string", "example": "vmess" },
+          "username": { "type": "string", "example": "budi" },
+          "expired": { "type": "string", "format": "date", "example": "2026-10-12" },
+          "domain": { "type": "string", "example": "vpn.contoh.com" },
+          "uuid": { "type": "string", "example": "0c3b1f1a-2b6e-4f7a-9d2c-1a2b3c4d5e6f" },
+          "links": {
+            "type": "object",
+            "description": "Link koneksi siap pakai untuk tiap transport.",
+            "properties": {
+              "ws_tls": { "type": "string" },
+              "ws_none_tls": { "type": "string" },
+              "grpc": { "type": "string" }
+            }
+          }
+        }
+      },
+      "CreateSshAccount": {
+        "type": "object",
+        "required": ["username", "password", "expired"],
+        "properties": {
+          "username": { "type": "string", "pattern": "^[a-zA-Z0-9_]{1,32}$", "example": "budi" },
+          "password": { "type": "string", "maxLength": 128, "example": "rahasia123" },
+          "expired": { "type": "integer", "minimum": 1, "maximum": 3650, "example": 30 }
+        }
+      },
+      "SshAccount": {
+        "type": "object",
+        "properties": {
+          "username": { "type": "string", "example": "budi" },
+          "password": { "type": "string", "example": "rahasia123" },
+          "expired": { "type": "string", "format": "date", "example": "2026-10-12" },
+          "host": { "type": "string", "example": "vpn.contoh.com" },
+          "ip": { "type": "string", "example": "203.0.113.10" },
+          "ports": {
+            "type": "object",
+            "properties": {
+              "openssh": { "type": "string", "example": "22" },
+              "dropbear": { "type": "string", "example": "109" },
+              "ssh_websocket": { "type": "string", "example": "80" },
+              "ssh_ssl_websocket": { "type": "string", "example": "443" },
+              "stunnel": { "type": "string", "example": "222" },
+              "squid": { "type": "string", "example": "3128" },
+              "ohp_ssh": { "type": "string" },
+              "ohp_dropbear": { "type": "string" },
+              "ohp_openvpn": { "type": "string", "example": "8787" },
+              "udpgw": { "type": "string", "example": "7100-7900" }
+            }
+          },
+          "payload": { "type": "string" }
+        }
+      },
+      "RenewRequest": {
+        "type": "object",
+        "required": ["expired"],
+        "properties": {
+          "expired": {
+            "type": "integer", "minimum": 1, "maximum": 3650, "example": 30,
+            "description": "Masa aktif baru dalam hari, dihitung dari sekarang"
+          }
+        }
+      },
+      "ApiKey": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "a1b2c3d4e5f60718" },
+          "name": { "type": "string", "example": "bot-telegram" },
+          "prefix": { "type": "string", "example": "asc_Xy12ab" },
+          "scopes": { "type": "array", "items": { "type": "string" }, "example": ["*"] },
+          "created_at": { "type": "string", "example": "2026-09-12 08:30:00" },
+          "last_used": { "type": "string", "nullable": true },
+          "revoked": { "type": "boolean", "example": false }
+        }
+      },
+      "ApiKeyCreated": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ApiKey" },
+          {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "description": "Key mentah. HANYA ditampilkan sekali di response ini.",
+                "example": "asc_Xy12abCD34ef56GH78ij90KLmnOPqrSTuvWX"
+              }
+            }
+          }
+        ]
+      },
+      "SystemInfo": {
+        "type": "object",
+        "properties": {
+          "api_version": { "type": "string", "example": "1.0.0" },
+          "script_version": { "type": "string", "example": "1.1.4" },
+          "domain": { "type": "string", "example": "vpn.contoh.com" },
+          "ip": { "type": "string", "example": "203.0.113.10" },
+          "isp": { "type": "string" },
+          "city": { "type": "string" },
+          "uptime_seconds": { "type": "integer", "example": 86400 },
+          "memory": {
+            "type": "object",
+            "properties": {
+              "total_mb": { "type": "integer", "example": 1024 },
+              "used_mb": { "type": "integer", "example": 312 },
+              "free_mb": { "type": "integer", "example": 712 }
+            }
+          },
+          "accounts": {
+            "type": "object",
+            "properties": {
+              "ssh": { "type": "integer" },
+              "vmess": { "type": "integer" },
+              "vless": { "type": "integer" },
+              "trojan": { "type": "integer" },
+              "ss": { "type": "integer" }
+            }
+          },
+          "services": { "type": "object", "additionalProperties": { "type": "boolean" } }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "API key tidak ada atau tidak valid",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" },
+          "example": { "error": "unauthorized", "detail": "supply a valid key via the X-API-Key header or Authorization: Bearer" } } }
+      },
+      "NotFound": {
+        "description": "Data tidak ditemukan",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" },
+          "example": { "error": "user not found", "detail": "vmess user budi" } } }
+      },
+      "BadRequest": {
+        "description": "Parameter tidak valid",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" },
+          "example": { "error": "invalid username", "detail": "username must be 1-32 characters of a-z, A-Z, 0-9 or underscore" } } }
+      },
+      "Conflict": {
+        "description": "Username sudah dipakai",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" },
+          "example": { "error": "user already exists", "detail": "vmess user budi" } } }
+      }
+    },
+    "parameters": {
+      "Username": {
+        "name": "username", "in": "path", "required": true,
+        "schema": { "type": "string", "pattern": "^[a-zA-Z0-9_]{1,32}$" },
+        "example": "budi"
+      }
+    }
+  },
+  "security": [{ "ApiKeyAuth": [] }, { "BearerAuth": [] }],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Health check",
+        "description": "Tidak memerlukan API key. Berguna untuk monitoring/uptime check.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "API hidup",
+            "content": { "application/json": { "example": { "status": "ok", "version": "1.0.0" } } }
+          }
+        }
+      }
+    },
+    "/system/info": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Informasi VPS",
+        "description": "Versi script, domain, IP, ISP, uptime, penggunaan RAM, jumlah akun per protokol dan status tiap service.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SystemInfo" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/system/services": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Status semua service",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "example": {
+              "ssh": true, "dropbear": true, "stunnel4": true, "squid": true,
+              "nginx": true, "xray": true, "ws-dropbear": true, "ws-stunnel": true,
+              "ws-ovpn": true, "cron": true, "autosc-api": true } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/system/services/restart": {
+      "post": {
+        "tags": ["System"],
+        "summary": "Restart service",
+        "description": "Setara menu `restart`. Bila `services` tidak dikirim, seluruh service dikelola akan direstart. Service `autosc-api` sengaja ditolak karena akan memutus request yang sedang berjalan.",
+        "requestBody": {
+          "required": false,
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "properties": {
+              "services": {
+                "type": "array", "items": { "type": "string" },
+                "example": ["nginx", "xray"]
+              }
+            }
+          } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Hasil per service",
+            "content": { "application/json": { "example": { "results": { "nginx": "ok", "xray": "ok" } } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+
+    "/ssh": {
+      "get": {
+        "tags": ["SSH"],
+        "summary": "Daftar akun SSH",
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountList" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["SSH"],
+        "summary": "Buat akun SSH",
+        "description": "Membuat user sistem dengan shell `/bin/false` dan tanggal kedaluwarsa, lalu mendaftarkannya ke `/etc/xray/ssh.txt` — persis seperti menu `ADD SSH`.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateSshAccount" } } }
+        },
+        "responses": {
+          "201": { "description": "Akun dibuat", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SshAccount" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/ssh/online": {
+      "get": {
+        "tags": ["SSH"],
+        "summary": "User yang sedang online",
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "example": { "online": [{ "username": "budi", "sessions": 2 }] } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/ssh/{username}": {
+      "delete": {
+        "tags": ["SSH"],
+        "summary": "Hapus akun SSH",
+        "description": "Menghentikan sesi aktif user, menghapus user sistem, dan membersihkan `/etc/xray/ssh.txt`.",
+        "parameters": [{ "$ref": "#/components/parameters/Username" }],
+        "responses": {
+          "200": { "description": "Terhapus", "content": { "application/json": { "example": { "protocol": "ssh", "username": "budi", "deleted": true } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/ssh/{username}/renew": {
+      "post": {
+        "tags": ["SSH"],
+        "summary": "Perpanjang akun SSH",
+        "parameters": [{ "$ref": "#/components/parameters/Username" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RenewRequest" } } } },
+        "responses": {
+          "200": { "description": "Diperpanjang", "content": { "application/json": { "example": { "protocol": "ssh", "username": "budi", "expired": "2026-11-11", "renewed": true } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/vmess": {
+      "get": {
+        "tags": ["VMess"],
+        "summary": "Daftar akun VMess",
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountList" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["VMess"],
+        "summary": "Buat akun VMess",
+        "description": "Menyisipkan client ke inbound WS dan gRPC di `/etc/xray/config.json`, lalu restart Xray. Response berisi link `vmess://` siap impor.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateXrayAccount" } } } },
+        "responses": {
+          "201": { "description": "Akun dibuat", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/XrayAccount" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/vmess/{username}": {
+      "delete": {
+        "tags": ["VMess"],
+        "summary": "Hapus akun VMess",
+        "parameters": [{ "$ref": "#/components/parameters/Username" }],
+        "responses": {
+          "200": { "description": "Terhapus", "content": { "application/json": { "example": { "protocol": "vmess", "username": "budi", "deleted": true } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/vmess/{username}/renew": {
+      "post": {
+        "tags": ["VMess"],
+        "summary": "Perpanjang akun VMess",
+        "parameters": [{ "$ref": "#/components/parameters/Username" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RenewRequest" } } } },
+        "responses": {
+          "200": { "description": "Diperpanjang", "content": { "application/json": { "example": { "protocol": "vmess", "username": "budi", "expired": "2026-11-11", "renewed": true } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/vless": {
+      "get": {
+        "tags": ["VLESS"],
+        "summary": "Daftar akun VLESS",
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountList" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["VLESS"],
+        "summary": "Buat akun VLESS",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateXrayAccount" } } } },
+        "responses": {
+          "201": { "description": "Akun dibuat", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/XrayAccount" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/vless/{username}": {
+      "delete": {
+        "tags": ["VLESS"],
+        "summary": "Hapus akun VLESS",
+        "parameters": [{ "$ref": "#/components/parameters/Username" }],
+        "responses": {
+          "200": { "description": "Terhapus" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/vless/{username}/renew": {
+      "post": {
+        "tags": ["VLESS"],
+        "summary": "Perpanjang akun VLESS",
+        "parameters": [{ "$ref": "#/components/parameters/Username" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RenewRequest" } } } },
+        "responses": {
+          "200": { "description": "Diperpanjang" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/trojan": {
+      "get": {
+        "tags": ["Trojan"],
+        "summary": "Daftar akun Trojan",
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountList" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Trojan"],
+        "summary": "Buat akun Trojan",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateXrayAccount" } } } },
+        "responses": {
+          "201": { "description": "Akun dibuat", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/XrayAccount" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/trojan/{username}": {
+      "delete": {
+        "tags": ["Trojan"],
+        "summary": "Hapus akun Trojan",
+        "parameters": [{ "$ref": "#/components/parameters/Username" }],
+        "responses": {
+          "200": { "description": "Terhapus" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/trojan/{username}/renew": {
+      "post": {
+        "tags": ["Trojan"],
+        "summary": "Perpanjang akun Trojan",
+        "parameters": [{ "$ref": "#/components/parameters/Username" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RenewRequest" } } } },
+        "responses": {
+          "200": { "description": "Diperpanjang" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/ss": {
+      "get": {
+        "tags": ["Shadowsocks"],
+        "summary": "Daftar akun Shadowsocks",
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountList" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Shadowsocks"],
+        "summary": "Buat akun Shadowsocks",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateSsAccount" } } } },
+        "responses": {
+          "201": { "description": "Akun dibuat", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/XrayAccount" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/ss/{username}": {
+      "delete": {
+        "tags": ["Shadowsocks"],
+        "summary": "Hapus akun Shadowsocks",
+        "parameters": [{ "$ref": "#/components/parameters/Username" }],
+        "responses": {
+          "200": { "description": "Terhapus" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/ss/{username}/renew": {
+      "post": {
+        "tags": ["Shadowsocks"],
+        "summary": "Perpanjang akun Shadowsocks",
+        "parameters": [{ "$ref": "#/components/parameters/Username" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RenewRequest" } } } },
+        "responses": {
+          "200": { "description": "Diperpanjang" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/keys": {
+      "get": {
+        "tags": ["API Keys"],
+        "summary": "Daftar API key",
+        "description": "Key mentah tidak pernah dikembalikan — hanya disimpan sebagai hash SHA-256. Yang tampil adalah prefix untuk identifikasi.",
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": {
+            "type": "object",
+            "properties": { "keys": { "type": "array", "items": { "$ref": "#/components/schemas/ApiKey" } } }
+          } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["API Keys"],
+        "summary": "Buat API key baru",
+        "requestBody": {
+          "required": false,
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "properties": { "name": { "type": "string", "maxLength": 64, "example": "bot-telegram" } }
+          } } }
+        },
+        "responses": {
+          "201": { "description": "Key dibuat. Field `key` hanya muncul sekali.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiKeyCreated" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/keys/{id}": {
+      "delete": {
+        "tags": ["API Keys"],
+        "summary": "Hapus API key",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "ID atau nama key" }],
+        "responses": {
+          "200": { "description": "Terhapus", "content": { "application/json": { "example": { "id": "a1b2c3d4e5f60718", "deleted": true } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/keys/{id}/revoke": {
+      "post": {
+        "tags": ["API Keys"],
+        "summary": "Cabut API key",
+        "description": "Key tetap tercatat tetapi tidak bisa dipakai lagi. Gunakan bila ingin menyimpan jejak audit.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "ID atau nama key" }],
+        "responses": {
+          "200": { "description": "Dicabut", "content": { "application/json": { "example": { "id": "a1b2c3d4e5f60718", "revoked": true } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  }
+}

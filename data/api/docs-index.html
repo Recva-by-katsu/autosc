@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Autoscript VPS API — Dokumentasi</title>
+    <meta name="description" content="Dokumentasi REST API autoscript VPS: akun SSH, VMess, VLESS, Trojan, Shadowsocks, informasi sistem dan manajemen API key." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128274;</text></svg>" />
+    <style>
+      body { margin: 0; }
+      #loading {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        padding: 3rem; text-align: center; color: #64748b;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"><div id="loading">Memuat dokumentasi API…</div></div>
+
+    <!--
+      Scalar API Reference (MIT) — https://github.com/scalar/scalar
+      Bundle di-vendor lokal saat instalasi sehingga dokumentasi tetap tampil
+      walaupun VPS tidak bisa menjangkau CDN. Bila unduhan gagal saat install,
+      installer menulis fallback ke jsdelivr pada tag script di bawah.
+    -->
+    <script src="./assets/scalar.js"></script>
+    <script>
+      (function () {
+        function render() {
+          Scalar.createApiReference('#app', {
+            url: '/api/openapi.json',
+            theme: 'purple',
+            darkMode: true,
+            hideDownloadButton: false,
+            metaData: { title: 'Autoscript VPS API' },
+          });
+        }
+        if (window.Scalar && window.Scalar.createApiReference) {
+          render();
+        } else {
+          // Bundle lokal tidak tersedia: ambil dari CDN sebagai cadangan.
+          var fallback = document.createElement('script');
+          fallback.src = 'https://cdn.jsdelivr.net/npm/@scalar/api-reference';
+          fallback.onload = render;
+          fallback.onerror = function () {
+            document.getElementById('loading').textContent =
+              'Gagal memuat dokumentasi. Spesifikasi mentah tetap tersedia di /api/openapi.json';
+          };
+          document.head.appendChild(fallback);
+        }
+      })();
+    </script>
+  </body>
+</html>

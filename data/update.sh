@@ -106,6 +106,12 @@ chmod +x /usr/bin/regionchecker
 
 wget -q -O /usr/bin/crtxray https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/crt.sh; chmod +x /usr/bin/crtxray
 
+# 1.2.0 - REST API + documentation site
+cd; clear
+wget -q -O /tmp/ins-api.sh https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/api/ins-api.sh
+[ -s /tmp/ins-api.sh ] && bash /tmp/ins-api.sh
+rm -f /tmp/ins-api.sh
+
 
 
 # ============================================================================
@@ -124,7 +130,11 @@ echo -e "$COLOR1└────────────────────�
 echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
 echo -e "$COLOR1 ${NC}  $COLOR1[INFO]${NC} Check for Script updates [done]"
 echo -e "$COLOR1 ${NC}  $COLOR1[INFO]${NC} Downloading Update File  [done]"
-echo -e "   $COLOR1[INFO] ${NC}Changelogs on v1.1.4 :
+echo -e "   $COLOR1[INFO] ${NC}Changelogs on v1.2.0 :
+     ➢ Added REST API for all panel features
+     ➢ Added API documentation site at https://<domain>/docs/
+     ➢ Added API menu (menu -> 13) to manage API keys
+   $COLOR1[INFO] ${NC}Changelogs on v1.1.4 :
      ➢ Fixed region checker error
      ➢ Added option on ssl cert installer (ipv4/6)
 $COLOR1[INFO] ${NC}Changelogs on v1.1.3 :
