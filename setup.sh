@@ -86,7 +86,7 @@ chmod 644 /root/.profile
 
 echo -e "[ ${green}INFO${NC} ] Preparing the install file 🛠"
 apt update >/dev/null 2>&1
-apt install git curl vnstat nload htop python nethogs ufw -y >/dev/null 2>&1
+apt install git curl vnstat nload htop python3 nethogs ufw -y >/dev/null 2>&1
 echo -e "[ ${green}INFO${NC} ] Alright good ... installation file is ready 📡"
 sleep 2
 echo -ne "[ ${green}INFO${NC} ] Check permission : success 😁"
@@ -111,7 +111,7 @@ fi
 fi
 
 echo ""
-wget -q https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/dependencies.sh;chmod +x dependencies.sh;./dependencies.sh
+wget -q https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/dependencies.sh;chmod +x dependencies.sh;./dependencies.sh
 rm dependencies.sh
 clear
 
@@ -158,41 +158,49 @@ echo -e "${tyblue}|     PROCESS INSTALLED SSH & OPENVPN      |${NC}"
 echo -e "${tyblue}'------------------------------------------'${NC}"
 sleep 2
 clear
-wget https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/ssh-vpn.sh && chmod +x ssh-vpn.sh && ./ssh-vpn.sh
+wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/ssh-vpn.sh && chmod +x ssh-vpn.sh && ./ssh-vpn.sh
 #Install Xray
 echo -e "${tyblue}.------------------------------------------.${NC}"
 echo -e "${tyblue}|          PROCESS INSTALLED XRAY          |${NC}"
 echo -e "${tyblue}'------------------------------------------'${NC}"
 sleep 2
 clear
-wget https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/ins-xray.sh && chmod +x ins-xray.sh && ./ins-xray.sh
+wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/ins-xray.sh && chmod +x ins-xray.sh && ./ins-xray.sh
 #Install SSH Websocket
 echo -e "${tyblue}.------------------------------------------.${NC}"
 echo -e "${tyblue}|      PROCESS INSTALLED WEBSOCKET SSH     |${NC}"
 echo -e "${tyblue}'------------------------------------------'${NC}"
 sleep 2
 clear
-wget https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/insshws.sh && chmod +x insshws.sh && ./insshws.sh
+wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/insshws.sh && chmod +x insshws.sh && ./insshws.sh
 #Install OHP Websocket
 echo -e "${tyblue}.------------------------------------------.${NC}"
 echo -e "${tyblue}|          PROCESS INSTALLED OHP           |${NC}"
 echo -e "${tyblue}'------------------------------------------'${NC}"
 sleep 2
 clear
-wget https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/ohp.sh && chmod +x ohp.sh && ./ohp.sh
+wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/ohp.sh && chmod +x ohp.sh && ./ohp.sh
 #Install AutoBackup
 echo -e "${tyblue}.------------------------------------------.${NC}"
 echo -e "${tyblue}|          PROCESS INSTALLED AUTO BACKUP           |${NC}"
 echo -e "${tyblue}'------------------------------------------'${NC}"
 sleep 2
 clear
-wget https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/set-br.sh && chmod +x set-br.sh && ./set-br.sh
+wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/set-br.sh && chmod +x set-br.sh && ./set-br.sh
+#Install REST API & Documentation
+echo -e "${tyblue}.------------------------------------------.${NC}"
+echo -e "${tyblue}|      PROCESS INSTALLED API & DOCS        |${NC}"
+echo -e "${tyblue}'------------------------------------------'${NC}"
+sleep 2
+clear
+wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/api/ins-api.sh && chmod +x ins-api.sh && ./ins-api.sh
+rm -f ins-api.sh
 #Download Extra Menu
 echo -e "${tyblue}.------------------------------------------.${NC}"
 echo -e "${tyblue}|           DOWNLOAD EXTRA MENU            |${NC}"
 echo -e "${tyblue}'------------------------------------------'${NC}"
 sleep 2
-wget https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/update.sh && chmod +x update.sh && ./update.sh
+wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/update.sh && chmod +x update.sh && ./update.sh
 clear
 
 ############# LawNET #############
@@ -226,7 +234,7 @@ if [ ! -f "/etc/log-create-user.log" ]; then
 echo "Log All Account " > /etc/log-create-user.log
 fi
 history -c
-serverV=$( curl -sS https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/version  )
+serverV=$( curl -sS https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/version  )
 echo $serverV > /opt/.ver
 aureb=$(cat /home/re_otm)
 b=11
@@ -295,6 +303,9 @@ echo "   - VPS Settings" | tee -a log-install.txt
 echo "   - Admin Control" | tee -a log-install.txt
 echo "   - Backup & Restore Data" | tee -a log-install.txt
 echo "   - Full Orders For Various Services" | tee -a log-install.txt
+echo "   - REST API                : https://$pp/api" | tee -a log-install.txt
+echo "   - API Documentation       : https://$pp/docs/" | tee -a log-install.txt
+echo "   - API Key Management      : menu -> 13 (or: menu-api)" | tee -a log-install.txt
 echo ""  | tee -a log-install.txt
 echo "=========================[SCRIPT PREMIUM]========================"
 echo ""
@@ -312,9 +323,9 @@ rm /root/lawsc >/dev/null 2>&1
 echo ""
 echo -e "Setting up autorefresh on xray user login"
 #echo -ne "Choose between 1-30 minutes: "; read afresh
-wget -q -O /usr/bin/clear-log raw.githubusercontent.com/LawNetwork/Autoscript/main/xray/clear-log
+wget -q -O /usr/bin/clear-log https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/addons/clear-log
 chmod +x /usr/bin/clear-log; cd
-wget -q raw.githubusercontent.com/LawNetwork/Autoscript/main/addons/crontab.sh
+wget -q https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/addons/crontab.sh
 chmod +x crontab.sh; ./crontab.sh; rm crontab.sh
 
 echo "#!/bin/bash
@@ -324,6 +335,20 @@ chmod +x /usr/bin/regionchecker
 echo "Changing the version to the oldest so you can update manually.."
 echo "0.0.1" > /opt/.ver; sleep 2
 echo "Changing the version to the oldest so you can update manually.. done"
+
+if [ -s /etc/autosc-api/first-key.txt ]; then
+echo ""
+echo "=========================[ API ACCESS ]========================="
+echo " Your first API key (shown once, also saved in"
+echo " /etc/autosc-api/first-key.txt):"
+echo ""
+echo "   $(cat /etc/autosc-api/first-key.txt)"
+echo ""
+echo " Docs : https://$pp/docs/"
+echo " Usage: curl -H \"X-API-Key: <key>\" https://$pp/api/system/info"
+echo " Manage keys later with: menu-api"
+echo "================================================================"
+fi
 
 echo ""
 echo -e "   ${tyblue}Your VPS Will Be Automatical Reboot In 10 seconds${NC}"

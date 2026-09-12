@@ -44,6 +44,14 @@ else
     status_xray="${RED}OFF${NC}"
 fi
 
+# // Autoscript REST API
+api=$( systemctl is-active autosc-api 2>/dev/null )
+if [[ $api == "active" ]]; then
+    status_api="${COLOR1}ON${NC}"
+else
+    status_api="${RED}OFF${NC}"
+fi
+
 function add-host(){
 clear
 echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
@@ -79,12 +87,12 @@ echo -e "$COLOR1└────────────────────�
 echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
 echo -e "$COLOR1 ${NC}  $COLOR1[INFO]${NC} Check for Script updates"
 sleep 2
-wget -q -O /root/update.sh "https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/update.sh" && chmod +x /root/update.sh
+wget -q -O /root/update.sh "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/update.sh" && chmod +x /root/update.sh
 sleep 2
 /root/./update.sh
 rm /root/update.sh
 #rm /opt/.ver
-#version_up=$( curl -sS https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/version)
+#version_up=$( curl -sS https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/version)
 #echo "$version_up" > /opt/.ver
 
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
@@ -107,7 +115,7 @@ cekup=`uptime -p | grep -ow "day"`
 IPVPS=$(cat /etc/lukman/ip)
 sensored_ip=$(echo $IPVPS | sed 's/\.[0-9]*\.[0-9]*$/.*.*/')
 
-serverV=$( curl -sS https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/version); ##### USING EXTERNAL LINK #####
+serverV=$( curl -sS https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/version); ##### USING EXTERNAL LINK #####
 
 uis="${COLOR1}Premium Version$NC"
 echo -e "$COLOR1 $NC ${WH}User Roles     ${COLOR1}: ${WH}$uis"
@@ -131,6 +139,7 @@ echo -e "  ${WH}[${COLOR1}03${WH}]${NC} ${COLOR1}• ${WH}VLESS   ${WH}[${COLOR1
 echo -e "  ${WH}[${COLOR1}04${WH}]${NC} ${COLOR1}• ${WH}TROJAN  ${WH}[${COLOR1}${status_xray}${WH}]   ${WH}[${COLOR1}10${WH}]${NC} ${COLOR1}• ${WH}RENEW CERT       $COLOR1 $NC"  
 echo -e "  ${WH}[${COLOR1}05${WH}]${NC} ${COLOR1}• ${WH}SS WS   ${WH}[${COLOR1}ON${WH}]   ${WH}[${COLOR1}11${WH}]${NC} ${COLOR1}• ${WH}SETTINGS ${WH}[${COLOR1}Menu${WH}]  $COLOR1 $NC"
 echo -e "  ${WH}[${COLOR1}06${WH}]${NC} ${COLOR1}• ${WH}SET DNS ${WH}[${COLOR1}Menu${WH}] ${WH}[${COLOR1}12${WH}]${NC} ${COLOR1}• ${WH}INFO     ${WH}[${COLOR1}Menu${WH}]  $COLOR1 $NC"
+echo -e "  ${WH}[${COLOR1}13${WH}]${NC} ${COLOR1}• ${WH}API     ${WH}[${COLOR1}${status_api}${WH}]${NC}                            $COLOR1 $NC"
 echo ""
 echo -e "  ${WH}[${COLOR1}00${WH}]${NC} ${COLOR1}• ${WH}EXIT  $COLOR1 $NC"
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
@@ -173,6 +182,7 @@ case $opt in
 10) clear ; crtxray ;;
 11) clear ; menu-set ;;
 12) clear ; info ;;
+13) clear ; menu-api ;;
 99) dgrade ;;
 100) clear ; $up2u ;;
 x) exit ;;

@@ -7,7 +7,7 @@ NB: These codes are totally free, open source, and all belongs to ©Yudhynet. Me
 ### Pilih salah satu dari kedua link di bawah
 Link panjang
 ```
-wget https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/setup.sh && chmod +x setup.sh && ./setup.sh
+wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/setup.sh && chmod +x setup.sh && ./setup.sh
 ```
 Link pendek
 ```
@@ -30,5 +30,76 @@ nano /etc/issue.net
 ### For anyone whos using ISP RUMAHWEB Indonesia or FCCDCI server
 If you encounter when installing the script is taking time so long, change the repository to local one (Data Utama Surabaya, Indonesia), copy and paste this code then run the Installer again
 ```
-wget raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/RepoLocal.sh && bash RepoLocal.sh && rm RepoLocal.sh && apt update
+wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/RepoLocal.sh && bash RepoLocal.sh && rm RepoLocal.sh && apt update
 ```
+
+## REST API & Dokumentasi
+
+Sejak v1.2.0 seluruh fitur panel juga tersedia lewat REST API. API dan situs
+dokumentasinya dipasang otomatis saat instalasi, memakai domain yang sama
+dengan yang Anda masukkan di awal install.
+
+| | URL |
+|---|---|
+| Dokumentasi interaktif | `https://DOMAIN-ANDA/docs/` |
+| Base URL API | `https://DOMAIN-ANDA/api` |
+| Spesifikasi OpenAPI | `https://DOMAIN-ANDA/api/openapi.json` |
+| Health check (tanpa key) | `https://DOMAIN-ANDA/api/health` |
+
+API key pertama ditampilkan di akhir proses instalasi dan disimpan di
+`/etc/autosc-api/first-key.txt`.
+
+### Menu API
+
+Kelola API key lewat `menu` → `13`, atau langsung dengan perintah `menu-api`:
+
+```
+[01] GENERATE API KEY     [05] RESTART API
+[02] LIST API KEY         [06] TEST API
+[03] REVOKE API KEY       [07] API INFO
+[04] DELETE API KEY
+```
+
+Key disimpan sebagai hash SHA-256 di `/etc/autosc-api/keys.json`; nilai
+mentahnya hanya ditampilkan satu kali saat dibuat.
+
+### Endpoint
+
+Autentikasi memakai header `X-API-Key: <key>` atau `Authorization: Bearer <key>`.
+
+| Method | Path | Keterangan |
+|---|---|---|
+| `GET` | `/system/info` | Info VPS, jumlah akun, status service |
+| `GET` | `/system/services` | Status seluruh service |
+| `POST` | `/system/services/restart` | Restart service |
+| `GET` | `/{protokol}` | Daftar akun |
+| `POST` | `/{protokol}` | Buat akun |
+| `DELETE` | `/{protokol}/{username}` | Hapus akun |
+| `POST` | `/{protokol}/{username}/renew` | Perpanjang akun |
+| `GET` | `/ssh/online` | User SSH yang sedang online |
+| `GET` `POST` | `/keys` | Daftar / buat API key |
+| `POST` | `/keys/{id}/revoke` | Cabut API key |
+| `DELETE` | `/keys/{id}` | Hapus API key |
+
+`{protokol}` = `ssh`, `vmess`, `vless`, `trojan`, atau `ss`.
+
+Contoh membuat akun VMess 30 hari:
+
+```bash
+curl -X POST https://DOMAIN-ANDA/api/vmess \
+  -H "X-API-Key: KEY_ANDA" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"budi","expired":30}'
+```
+
+Response berisi link `vmess://` siap impor untuk WS TLS, WS non-TLS dan gRPC.
+
+Akun yang dibuat lewat API memakai file dan format yang sama persis dengan menu
+interaktif, sehingga keduanya bisa dipakai bergantian.
+
+### Catatan keamanan
+
+Service API hanya mendengarkan di `127.0.0.1:8081`; akses publik selalu melewati
+nginx pada domain Anda sehingga terlindungi TLS. Cabut key yang bocor dengan
+`menu-api` → `03`.
+

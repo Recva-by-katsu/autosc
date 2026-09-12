@@ -15,7 +15,7 @@ MYIP=$(wget -qO- ipinfo.io/ip);
 
 apt install rclone -y
 printf "q\n" | rclone config
-wget -O /root/.config/rclone/rclone.conf "https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/rclone.conf"
+wget -O /root/.config/rclone/rclone.conf "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/rclone.conf"
 git clone  https://github.com/magnific0/wondershaper.git
 cd wondershaper
 make install
@@ -40,10 +40,10 @@ logfile ~/.msmtp.log
 EOF
 chown -R www-data:www-data /etc/msmtprc
 cd /usr/bin
-wget -O autobackup "https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/autobackup.sh"
-wget -O backup "https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/backup.sh"
-wget -O restore "https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/restore.sh"
-wget -O limitspeed "https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/limitspeed.sh"
+wget -O autobackup "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/autobackup.sh"
+wget -O backup "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/backup.sh"
+wget -O restore "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/restore.sh"
+wget -O limitspeed "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/limitspeed.sh"
 chmod +x autobackup
 chmod +x backup
 chmod +x restore

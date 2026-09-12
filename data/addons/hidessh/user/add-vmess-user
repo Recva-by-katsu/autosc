@@ -1,0 +1,151 @@
+#!/bin/bash
+dateFromServer=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
+biji=`date +"%Y-%m-%d" -d "$dateFromServer"`
+#########################
+
+MYIP=$(cat /root/ip)
+red='\e[1;31m'
+green='\e[0;32m'
+NC='\e[0m'
+green() { echo -e "\\033[32;1m${*}\\033[0m"; }
+red() { echo -e "\\033[31;1m${*}\\033[0m"; }
+
+source /var/lib/Lawnetwork/ipvps.conf
+if [[ "$IP" = "" ]]; then
+domain=$(cat /etc/xray/domain)
+else
+domain=$IP
+fi
+
+tls=443
+none=80
+
+numbRandom=$(shuf -i 1000-9999 -n 1)
+
+until [[ $user =~ ^[a-zA-Z0-9_]+$ && ${CLIENT_EXISTS} == '0' ]]; do
+
+                read -rp "User: " -e user
+                CLIENT_EXISTS=$(grep -w $user /etc/xray/config.json | wc -l)
+
+                if [[ ${CLIENT_EXISTS} -gt "0" ]]; then
+clear
+                        echo ""
+                        echo "A client with the specified name was already created, please choose another name."
+                        echo ""
+
+                        exit 0;
+                fi
+        done
+
+masaaktif=360
+exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
+sed -i '/#vmess$/a\### '"$user $exp"'\
+},{"id": "'""${user}_${numbRandom}""'","alterId": '"0"',"email": "'""$user""'"' /etc/xray/config.json
+exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
+sed -i '/#vmessgrpc$/a\### '"$user $exp"'\
+},{"id": "'""${user}_${numbRandom}""'","alterId": '"0"',"email": "'""$user""'"' /etc/xray/config.json
+asu=`cat<<EOF
+      {
+      "v": "2",
+      "ps": "${user}",
+      "add": "${domain}",
+      "port": "443",
+      "id": "${user}_${numbRandom}",
+      "aid": "0",
+      "net": "ws",
+      "path": "/vmess",
+      "type": "none",
+      "host": "${domain}",
+      "tls": "tls"
+}
+EOF`
+ask=`cat<<EOF
+      {
+      "v": "2",
+      "ps": "${user}",
+      "add": "${domain}",
+      "port": "80",
+      "id": "${user}_${numbRandom}",
+      "aid": "0",
+      "net": "ws",
+      "path": "/vmess",
+      "type": "none",
+      "host": "${domain}",
+      "tls": "none"
+}
+EOF`
+grpc=`cat<<EOF
+      {
+      "add": "${domain}",
+      "aid": "0",
+      "alpn": "",
+      "host": "",
+      "id": "${user}_${numbRandom}",
+      "net": "grpc",
+      "path": "vmess-grpc",
+      "port": "443",
+      "ps": "${user}",
+      "scy": "auto",
+      "sni": "${domain}",
+      "tls": "tls",
+      "type": "gun",
+      "v": "2"
+}
+EOF`
+vmess_base641=$( base64 -w 0 <<< $vmess_json1)
+vmess_base642=$( base64 -w 0 <<< $vmess_json2)
+vmess_base643=$( base64 -w 0 <<< $vmess_json3)
+vmesslink1="vmess://$(echo $asu | base64 -w 0)"
+vmesslink2="vmess://$(echo $ask | base64 -w 0)"
+vmesslink3="vmess://$(echo $grpc | base64 -w 0)"
+systemctl restart xray > /dev/null 2>&1
+service cron restart > /dev/null 2>&1
+clear
+echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" | tee -a /etc/log-create-user.log
+echo -e "     Xray/V2Ray/Vmess Account      " | tee -a /etc/log-create-user.log
+echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" | tee -a /etc/log-create-user.log
+echo -e "Remarks : ${user}" | tee -a /etc/log-create-user.log
+echo -e "Domain : ${domain}" | tee -a /etc/log-create-user.log
+echo -e "Port TLS : ${tls}" | tee -a /etc/log-create-user.log
+echo -e "Port none TLS : ${none}" | tee -a /etc/log-create-user.log
+echo -e "Port  GRPC : $tls" | tee -a /etc/log-create-user.log
+echo -e "id : ${user}_${numbRandom}" | tee -a /etc/log-create-user.log
+echo -e "alterId : 0" | tee -a /etc/log-create-user.log
+echo -e "Security : auto" | tee -a /etc/log-create-user.log
+echo -e "Network : ws" | tee -a /etc/log-create-user.log
+echo -e "Path : /vmess" | tee -a /etc/log-create-user.log
+echo -e "ServiceName : vmess-grpc" | tee -a /etc/log-create-user.log
+echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" | tee -a /etc/log-create-user.log
+echo -e "Link TLS : ${vmesslink1}" | tee -a /etc/log-create-user.log
+echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" | tee -a /etc/log-create-user.log
+echo -e "Link non-TLS : ${vmesslink2}" | tee -a /etc/log-create-user.log
+echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" | tee -a /etc/log-create-user.log
+echo -e "Link GRPC : ${vmesslink3}" | tee -a /etc/log-create-user.log
+echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" | tee -a /etc/log-create-user.log
+echo "" | tee -a /etc/log-create-user.log
+
+###################################
+TOKEN=$(cat /etc/lukman/bot_token)
+CHAT_ID="-1001826411896"
+
+input_file="/etc/xray/domain"
+output=""
+while IFS= read -r line; do
+    sanitized=$(echo "$line" | awk -F'.' '{print toupper(substr($1,1,1)) tolower(substr($1,2))}')
+    output="$output $sanitized"
+done < "$input_file"
+output_upper=$(echo "$output" | tr '[:lower:]' '[:upper:]')
+lastdomain="$output_upper"
+
+MESSAGE="<pre>┌─────────────────────────┐
+     • VMESS INFORMATION •
+└─────────────────────────┘
+┌─────────────────────────┐
+  ISP      :\$lastdomain
+  Username : \$user
+  Status   : Created 🟢
+└─────────────────────────┘</pre>"
+
+MESSAGE=$(echo "$MESSAGE" | sed "s/\$lastdomain/$lastdomain/g" | sed "s/\$user/$user/g")
+curl -s -X POST "https://api.telegram.org/bot$TOKEN/sendMessage" -d "chat_id=$CHAT_ID" -d "parse_mode=HTML" -d "text=$MESSAGE" > /dev/null
+###################################

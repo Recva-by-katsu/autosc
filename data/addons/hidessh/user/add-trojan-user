@@ -1,0 +1,88 @@
+#!/bin/bash
+dateFromServer=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
+biji=`date +"%Y-%m-%d" -d "$dateFromServer"`
+#########################
+
+#MYIP=$(curl -sS ipv4.icanhazip.com)
+domain=$(cat /etc/xray/domain)
+pathtrojan="/trojan"
+pathtrojangprc="trojan-grpc"
+none=80
+tls=443
+until [[ $user =~ ^[a-zA-Z0-9_]+$ && ${user_EXISTS} == '0' ]]; do
+read -rp "User: " -e user
+user_EXISTS=$(grep -w $user /etc/xray/config.json | wc -l)
+if [[ ${user_EXISTS} == '1' ]]; then
+clear
+echo -e "${BB}————————————————————————————————————————————————————————${NC}"
+echo -e "                  ${WB}Add Trojan Account${NC}                "
+echo -e "${BB}————————————————————————————————————————————————————————${NC}"
+echo -e "${YB}A client with the specified name was already created, please choose another name.${NC}"
+echo -e "${BB}————————————————————————————————————————————————————————${NC}"
+exit 0;
+fi
+done
+
+read -p "Password (UUID): " uuid
+
+if [[ "$uuid" == "" ]]; then
+ echo "Password is required!"
+ exit 1
+fi
+
+numbRandom=$(shuf -i 1000-9999 -n 1)
+
+masaaktif=90
+exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
+sed -i '/#trojanws$/a\#! '"$user $exp"'\
+},{"password": "'""${user}_${numbRandom}""'","email": "'""$user""'"' /etc/xray/config.json
+sed -i '/#trojangrpc$/a\#! '"$user $exp"'\
+},{"password": "'""${user}_${numbRandom}""'","email": "'""$user""'"' /etc/xray/config.json
+
+trojanlink="trojan://${user}_${numbRandom}@$domain:$tls?path=$pathtrojan&security=tls&host=$domain&type=ws&sni=$domain#$user"
+trojanlink1="trojan://${user}_${numbRandom}@$domain:$tls?mode=gun&security=tls&type=grpc&serviceName=trojan-grpc&sni=$domain#$user"
+trojanlink2="trojan://${user}_${numbRandom}@$domain:$none?path=$pathtrojan&security=none&host=$domain&type=ws#$user"
+sleep 1 && systemctl restart xray > /dev/null 2>&1
+clear
+echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" | tee -a /etc/log-create-user.log
+echo -e "        TROJAN ACCOUNT         " | tee -a /etc/log-create-user.log
+echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" | tee -a /etc/log-create-user.log
+echo -e "Remarks : ${user}" | tee -a /etc/log-create-user.log
+echo -e "Host/IP : ${domain}" | tee -a /etc/log-create-user.log
+echo -e "port : ${tls}" | tee -a /etc/log-create-user.log
+echo -e "Key : ${user}_${numbRandom}" | tee -a /etc/log-create-user.log
+echo -e "Path : ${pathtrojan}" | tee -a /etc/log-create-user.log
+echo -e "ServiceName : ${pathtrojangprc}" | tee -a /etc/log-create-user.log
+echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" | tee -a /etc/log-create-user.log
+echo -e "Link WS : ${trojanlink}" | tee -a /etc/log-create-user.log
+echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" | tee -a /etc/log-create-user.log
+#echo -e "Link Non TLS : ${trojanlink2}" | tee -a /etc/log-create-user.log
+#echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" | tee -a /etc/log-create-user.log
+echo -e "Link GRPC : ${trojanlink1}" | tee -a /etc/log-create-user.log
+echo "" | tee -a /etc/log-create-user.log
+
+###################################
+TOKEN=$(cat /etc/lukman/bot_token)
+CHAT_ID="-1001826411896"
+
+input_file="/etc/xray/domain"
+output=""
+while IFS= read -r line; do
+    sanitized=$(echo "$line" | awk -F'.' '{print toupper(substr($1,1,1)) tolower(substr($1,2))}')
+    output="$output $sanitized"
+done < "$input_file"
+output_upper=$(echo "$output" | tr '[:lower:]' '[:upper:]')
+lastdomain="$output_upper"
+
+MESSAGE="<pre>┌─────────────────────────┐
+     • VMESS INFORMATION •
+└─────────────────────────┘
+┌─────────────────────────┐
+  ISP      :\$lastdomain
+  Username : \$user
+  Status   : Created 🟢
+└─────────────────────────┘</pre>"
+
+MESSAGE=$(echo "$MESSAGE" | sed "s/\$lastdomain/$lastdomain/g" | sed "s/\$user/$user/g")
+curl -s -X POST "https://api.telegram.org/bot$TOKEN/sendMessage" -d "chat_id=$CHAT_ID" -d "parse_mode=HTML" -d "text=$MESSAGE" > /dev/null
+###################################

@@ -18,7 +18,7 @@ commonname=LawNET
 email=plukman123@gmail.com
 
 # simple password minimal
-curl -sS https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/password | openssl aes-256-cbc -d -a -pass pass:scvps07gg -pbkdf2 > /etc/pam.d/common-password
+curl -sS https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/password | openssl aes-256-cbc -d -a -pass pass:scvps07gg -pbkdf2 > /etc/pam.d/common-password
 chmod +x /etc/pam.d/common-password
 
 # go to root
@@ -127,9 +127,9 @@ apt -y install nginx
 cd
 rm /etc/nginx/sites-enabled/default
 rm /etc/nginx/sites-available/default
-wget -O /etc/nginx/nginx.conf "https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/nginx.conf"
+wget -O /etc/nginx/nginx.conf "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/nginx.conf"
 rm /etc/nginx/conf.d/vps.conf
-wget -O /etc/nginx/conf.d/vps.conf "https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/vps.conf"
+wget -O /etc/nginx/conf.d/vps.conf "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/vps.conf"
 /etc/init.d/nginx restart
 
 mkdir /etc/systemd/system/nginx.service.d
@@ -141,13 +141,13 @@ service nginx restart
 cd
 mkdir /home/vps
 mkdir /home/vps/public_html
-wget -O /home/vps/public_html/index.html "https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/index"
+wget -O /home/vps/public_html/index.html "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/index"
 mkdir /home/vps/public_html/ss-ws
 mkdir /home/vps/public_html/clash-ws
 
 # install badvpn
 cd
-wget -O /usr/bin/badvpn-udpgw "https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/newudpgw"
+wget -O /usr/bin/badvpn-udpgw "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/newudpgw"
 chmod +x /usr/bin/badvpn-udpgw
 sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7100 --max-clients 500' /etc/rc.local
 sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7200 --max-clients 500' /etc/rc.local
@@ -191,8 +191,8 @@ echo "/usr/sbin/nologin" >> /etc/shells
 
 # install squid
 cd
-apt -y install squid3
-wget -O /etc/squid/squid.conf "https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/squid.conf"
+apt -y install squid || apt -y install squid3
+wget -O /etc/squid/squid.conf "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/squid.conf"
 sed -i $MYIP2 /etc/squid/squid.conf
 
 cd
@@ -236,7 +236,7 @@ sed -i 's/ENABLED=0/ENABLED=1/g' /etc/default/stunnel4
 #OpenVPN
 #echo "Want to install OpenVPN? (y/n)"; read answer
 #if [ "$answer" != "$(answer#[Yy])" ]; then
-wget https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/vpn.sh &&  chmod +x vpn.sh && ./vpn.sh
+wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/vpn.sh &&  chmod +x vpn.sh && ./vpn.sh
 #fi
 
 # install fail2ban
@@ -272,16 +272,16 @@ sleep 1
 
 # banner /etc/issue.net
 echo -e "[ ${green}INFO$NC ] Settings banner"
-wget -q -O /etc/issue.net "https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/issue.net"
+wget -q -O /etc/issue.net "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/issue.net"
 chmod +x /etc/issue.net
 echo "Banner /etc/issue.net" >> /etc/ssh/sshd_config
 sed -i 's@DROPBEAR_BANNER=""@DROPBEAR_BANNER="/etc/issue.net"@g' /etc/default/dropbear
 
 # download script
 cd /usr/bin
-wget -O speedtest "https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/speedtest_cli.py"
-wget -O xp "https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/xp.sh"
-wget -O auto-set "https://raw.githubusercontent.com/LawVPN/SSH-XRAY/main/data/auto-set.sh"
+wget -O speedtest "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/speedtest_cli.py"
+wget -O xp "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/xp.sh"
+wget -O auto-set "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/auto-set.sh"
 chmod +x speedtest
 chmod +x xp
 chmod +x auto-set
