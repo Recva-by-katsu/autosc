@@ -1,4 +1,9 @@
 #!/bin/bash
+# Identitas repo hanya ada di /etc/katsutun/repo.conf (lihat data/repo.conf).
+# katsu-update menulis ulang file itu bila hilang, jadi $RAW selalu terisi.
+[ -r /etc/katsutun/repo.conf ] || katsu-update status >/dev/null 2>&1
+# shellcheck source=data/repo.conf
+. /etc/katsutun/repo.conf
 ###########- COLOR CODE -##############
 colornow=$(cat /etc/yudhynetwork/theme/color.conf 2>/dev/null)
 NC="\e[0m"
@@ -10,7 +15,7 @@ WH='\033[1;37m'
 ###########- KatsuTun -##########
 
 if [ ! -x /usr/bin/katsu-update ]; then
-wget -q -O /usr/bin/katsu-update "https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/katsu-update.sh" && chmod +x /usr/bin/katsu-update
+wget -q -O /usr/bin/katsu-update "$RAW/data/katsu-update.sh" && chmod +x /usr/bin/katsu-update
 fi
 
 header() {
@@ -123,6 +128,23 @@ fi
 boxend; footer; back
 }
 
+function setrepo(){
+header; box
+echo -e "$COLOR1 ${NC}  Repo saat ini : ${WH}$REPO${NC}"
+echo -e "$COLOR1 ${NC}  Isi dengan ${WH}user/repo${NC} milik Anda untuk mengikuti fork."
+echo -e "$COLOR1 ${NC}  Tersimpan di /etc/katsutun/repo.conf."
+echo ""
+echo -ne "  Repo baru (user/repo) : "; read rp
+out=$(katsu-update repo "$rp" 2>&1)
+if [ $? -eq 0 ]; then
+echo -e "  ${GREEN}[OK]${NC} Sekarang mengikuti ${WH}$rp${NC}"
+echo -e "  Jalankan menu 02 untuk menyamakan file."
+else
+echo -e "  ${RED}[ERROR]${NC} $out"
+fi
+boxend; footer; back
+}
+
 function showlog(){
 header; box
 katsu-update log 25 | sed 's/^/  /'
@@ -172,7 +194,7 @@ echo -e " $COLOR1┌────────────────────
  $COLOR1 $NC   ${WH}[${COLOR1}02${WH}]${NC} ${COLOR1}• ${WH}UPDATE NOW         ${WH}[${COLOR1}07${WH}]${NC} ${COLOR1}• ${WH}UPDATE LOG${NC}   $COLOR1 $NC
  $COLOR1 $NC   ${WH}[${COLOR1}03${WH}]${NC} ${COLOR1}• ${WH}AUTO UPDATE ON/OFF ${WH}[${COLOR1}08${WH}]${NC} ${COLOR1}• ${WH}ROLLBACK${NC}     $COLOR1 $NC
  $COLOR1 $NC   ${WH}[${COLOR1}04${WH}]${NC} ${COLOR1}• ${WH}SET INTERVAL       ${WH}[${COLOR1}09${WH}]${NC} ${COLOR1}• ${WH}GITHUB TOKEN${NC} $COLOR1 $NC
- $COLOR1 $NC   ${WH}[${COLOR1}05${WH}]${NC} ${COLOR1}• ${WH}AUTO RESTART ON/OFF${NC}                  $COLOR1 $NC
+ $COLOR1 $NC   ${WH}[${COLOR1}05${WH}]${NC} ${COLOR1}• ${WH}AUTO RESTART ON/OFF ${WH}[${COLOR1}10${WH}]${NC} ${COLOR1}• ${WH}SET REPO${NC}     $COLOR1 $NC
  $COLOR1 $NC                                              ${NC} $COLOR1 $NC
  $COLOR1 $NC   ${WH}[${COLOR1}00${WH}]${NC} ${COLOR1}• ${WH}GO BACK${NC}                              $COLOR1 $NC"
 echo -e " $COLOR1└───────────────────────────────────────────────┘${NC}"
@@ -189,6 +211,7 @@ case $opt in
 07 | 7) clear ; showlog ;;
 08 | 8) clear ; dorollback ;;
 09 | 9) clear ; settoken ;;
+10) clear ; setrepo ;;
 00 | 0) clear ; menu ;;
 *) clear ; menu-update ;;
 esac

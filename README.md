@@ -3,6 +3,39 @@ Mendukung Debian 10 dan Ubuntu 20, silakan yang pakai OS versi lain, rebuild ke 
 
 NB: These codes are totally free, open source, and all belongs to ©Yudhynet. Me personally just completed some codes
 
+## Konfigurasi Repo (pindah repo / fork)
+
+Identitas repo tidak lagi ditulis ulang di tiap script. Semuanya ada di satu
+file, `data/repo.conf`, yang dipasang ke `/etc/katsutun/repo.conf` saat install:
+
+```
+GH_USER="${GH_USER:-Revaa-Cerza}"
+GH_REPO="${GH_REPO:-autosc}"
+GH_BRANCH="${GH_BRANCH:-main}"
+BRAND="${BRAND:-KatsuTun}"
+```
+
+Dari situ diturunkan `$RAW`, `$REPO_URL`, dan `$ISSUES_URL` yang dipakai semua
+script, menu, banner, dan installer. Jadi untuk memakai fork sendiri cukup ubah
+satu tempat:
+
+```bash
+# saat install
+GH_USER=namaku GH_REPO=forkku ./setup.sh
+
+# setelah terpasang
+katsu-update repo namaku/forkku    # atau: menu-update -> 10
+katsu-update branch dev            # atau: menu-update -> 06
+katsu-update apply --force
+```
+
+`/etc/katsutun/repo.conf` adalah data milik VPS dan sengaja tidak terdaftar di
+`data/manifest.txt`, sehingga auto update tidak pernah mengembalikannya ke repo
+asal. Instalasi lama yang masih menyimpan `REPO=`/`BRANCH=` di `update.conf`
+dipindahkan otomatis saat `katsu-update` pertama kali jalan.
+
+Tes offline untuk aturan ini: `bash tests/test-repo-conf.sh`.
+
 ## Versi & Auto Update
 
 Installer selalu memasang **commit terbaru** dari branch `main` repo ini, jadi
@@ -21,11 +54,12 @@ Kelola lewat `menu` → `14` atau perintah `menu-update`:
 [02] UPDATE NOW          [07] UPDATE LOG
 [03] AUTO UPDATE ON/OFF  [08] ROLLBACK
 [04] SET INTERVAL        [09] GITHUB TOKEN
-[05] AUTO RESTART ON/OFF
+[05] AUTO RESTART ON/OFF [10] SET REPO
 ```
 
-CLI: `katsu-update check|apply|enable|disable|interval <menit>|branch <nama>|rollback|status|log`.
-Konfigurasi ada di `/etc/katsutun/update.conf`, log di `/etc/katsutun/update.log`.
+CLI: `katsu-update check|apply|enable|disable|interval <menit>|branch <nama>|repo <user/repo>|rollback|status|log`.
+Konfigurasi update ada di `/etc/katsutun/update.conf`, sumber repo di
+`/etc/katsutun/repo.conf`, log di `/etc/katsutun/update.log`.
 
 > Menambah file baru ke script? Daftarkan di `data/manifest.txt`
 > (`<path repo> <path install> <mode> [service]`) supaya ikut terpasang otomatis.

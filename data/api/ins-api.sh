@@ -1,8 +1,12 @@
 #!/bin/bash
+# Identitas repo hanya ada di /etc/katsutun/repo.conf (lihat data/repo.conf).
+# katsu-update menulis ulang file itu bila hilang, jadi $RAW selalu terisi.
+[ -r /etc/katsutun/repo.conf ] || katsu-update status >/dev/null 2>&1
+# shellcheck source=data/repo.conf
+. /etc/katsutun/repo.conf
 # Install the autoscript REST API and its documentation site.
 # Safe to re-run: existing API keys in /etc/autosc-api are preserved.
 
-REPO="https://raw.githubusercontent.com/Revaa-Cerza/autosc/main"
 NC='\033[0m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
@@ -22,14 +26,14 @@ mkdir -p /etc/autosc-api /usr/local/lib/autosc-api /home/vps/public_html/docs/as
 chmod 700 /etc/autosc-api
 
 # ---------------------------------------------------------------- API service
-wget -q -O /usr/local/bin/autosc-api "$REPO/data/api/autosc-api.py"
+wget -q -O /usr/local/bin/autosc-api "$RAW/data/api/autosc-api.py"
 if [ ! -s /usr/local/bin/autosc-api ]; then
     echo -e "${RED}[ERROR]${NC} Failed to download the API server"
     exit 1
 fi
 chmod +x /usr/local/bin/autosc-api
 
-wget -q -O /usr/local/lib/autosc-api/openapi.json "$REPO/data/api/openapi.json"
+wget -q -O /usr/local/lib/autosc-api/openapi.json "$RAW/data/api/openapi.json"
 
 cat > /etc/systemd/system/autosc-api.service <<'END'
 [Unit]
@@ -50,7 +54,7 @@ WantedBy=multi-user.target
 END
 
 # ------------------------------------------------------------- documentation
-wget -q -O /home/vps/public_html/docs/index.html "$REPO/data/api/docs-index.html"
+wget -q -O /home/vps/public_html/docs/index.html "$RAW/data/api/docs-index.html"
 
 # Vendor the Scalar bundle (MIT) so the docs render without reaching a CDN.
 echo -e "${GREEN}[INFO]${NC} Downloading API documentation template (Scalar, MIT)"
@@ -117,7 +121,7 @@ else
 fi
 
 # ------------------------------------------------------------------- menu cli
-wget -q -O /usr/bin/menu-api "$REPO/data/menu-api.sh" && chmod +x /usr/bin/menu-api
+wget -q -O /usr/bin/menu-api "$RAW/data/menu-api.sh" && chmod +x /usr/bin/menu-api
 
 # ----------------------------------------------------------------- start them
 systemctl daemon-reload

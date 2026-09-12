@@ -1,4 +1,9 @@
 #!/bin/bash
+# Identitas repo hanya ada di /etc/katsutun/repo.conf (lihat data/repo.conf).
+# katsu-update menulis ulang file itu bila hilang, jadi $RAW selalu terisi.
+[ -r /etc/katsutun/repo.conf ] || katsu-update status >/dev/null 2>&1
+# shellcheck source=data/repo.conf
+. /etc/katsutun/repo.conf
 ###########- KatsuTun -##############
 # Legacy `update` command. All real work is done by katsu-update, which
 # installs every file in data/manifest.txt from the newest GitHub commit.
@@ -9,7 +14,6 @@ GREEN="\033[0;32m"
 COLOR1="$(cat /etc/yudhynetwork/theme/$colornow 2>/dev/null | grep -w "TEXT" | cut -d: -f2|sed 's/ //g')"
 COLBG1="$(cat /etc/yudhynetwork/theme/$colornow 2>/dev/null | grep -w "BG" | cut -d: -f2|sed 's/ //g')"
 WH='\033[1;37m'
-REPO="https://raw.githubusercontent.com/Revaa-Cerza/autosc/main"
 
 clear
 echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
@@ -20,7 +24,7 @@ echo -e "$COLOR1┌────────────────────�
 # Bootstrap the updater itself on installs that predate it.
 if [ ! -x /usr/bin/katsu-update ]; then
 echo -e "$COLOR1 ${NC}  $COLOR1[INFO]${NC} Installing KatsuTun updater"
-wget -q -O /usr/bin/katsu-update "$REPO/data/katsu-update.sh" && chmod +x /usr/bin/katsu-update
+wget -q -O /usr/bin/katsu-update "$RAW/data/katsu-update.sh" && chmod +x /usr/bin/katsu-update
 fi
 
 echo -e "$COLOR1 ${NC}  $COLOR1[INFO]${NC} Checking GitHub for the newest commit"
@@ -35,7 +39,7 @@ IPVPS=$(curl -s ipinfo.io/ip ); ISP=$(curl -s ipinfo.io/org | cut -d " " -f 2-10
 echo "$IPVPS" > /etc/lukman/ip; echo "$ISP" > /etc/lukman/isp; echo "$CITY" > /etc/lukman/city
 }
 if [ ! -x /usr/local/bin/autosc-api ]; then
-wget -q -O /tmp/ins-api.sh "$REPO/data/api/ins-api.sh"
+wget -q -O /tmp/ins-api.sh "$RAW/data/api/ins-api.sh"
 [ -s /tmp/ins-api.sh ] && bash /tmp/ins-api.sh
 rm -f /tmp/ins-api.sh
 fi

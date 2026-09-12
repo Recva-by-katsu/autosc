@@ -1,4 +1,9 @@
 #!/bin/bash
+# Identitas repo hanya ada di /etc/katsutun/repo.conf (lihat data/repo.conf).
+# katsu-update menulis ulang file itu bila hilang, jadi $RAW selalu terisi.
+[ -r /etc/katsutun/repo.conf ] || katsu-update status >/dev/null 2>&1
+# shellcheck source=data/repo.conf
+. /etc/katsutun/repo.conf
 MYIP=$(wget -qO- ipinfo.io/ip);
 
 colornow=$(cat /etc/yudhynetwork/theme/color.conf)
@@ -87,7 +92,7 @@ menu-dns
 }
 
 function check-dns(){
-    bash <(curl -sSL https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/ceknet.sh)
+    bash <(curl -sSL "$RAW/data/ceknet.sh")
 read -n 1 -s -r -p "   Press any key to back on menu"
 menu
 }
