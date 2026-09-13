@@ -63,7 +63,7 @@ default_repo_conf() {
 cat > "$REPO_CONF" <<END
 # KatsuTun — sumber script & branding.
 # Ubah lalu jalankan: katsu-update apply --force
-GH_USER="\${GH_USER:-${1:-Revaa-Cerza}}"
+GH_USER="\${GH_USER:-${1:-Recva-by-katsu}}"
 GH_REPO="\${GH_REPO:-${2:-autosc}}"
 GH_BRANCH="\${GH_BRANCH:-${3:-main}}"
 BRAND="\${BRAND:-KatsuTun}"

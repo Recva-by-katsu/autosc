@@ -1,131 +1,43 @@
 #!/bin/bash
-# ==========================================
-# Color
-RED='\033[0;31m'
-NC='\033[0m'
-GREEN='\033[0;32m'
-ORANGE='\033[0;33m'
-BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
-LIGHT='\033[0;37m'
-# ==========================================
-# Getting
-clear
-IP=$(wget -qO- ipinfo.io/ip);
-date=$(date +"%Y-%m-%d");
-Green_font_prefix="\033[32m" && Red_font_prefix="\033[31m" && Green_background_prefix="\033[42;37m" && Red_background_prefix="\033[41;37m" && Font_color_suffix="\033[0m"
-Info="${Green_font_prefix}[ON]${Font_color_suffix}"
-Error="${Red_font_prefix}[OFF]${Font_color_suffix}"
-cek=$(grep -c -E "^# BEGIN_Backup" /etc/crontab)
-if [[ "$cek" = "1" ]]; then
-sts="${Info}"
-else
-sts="${Error}"
-fi
-function start() {
-email=$(cat /home/email)
-if [[ "$email" = "" ]]; then
-echo "Please enter your email"
-read -rp "Email : " -e email
-cat <<EOF>>/home/email
-$email
-EOF
-fi
-cat << EOF >> /etc/crontab
-# BEGIN_Backup
-5 0 * * * root backup
-# END_Backup
-EOF
-service cron restart
-sleep 1
-echo " Please Wait"
-clear
-echo " Autobackup Has Been Started"
-echo " Data Will Be Backed Up Automatically at 00:05 GMT +7"
-exit 0
-}
-function stop() {
-email=$(cat /home/email)
-sed -i "/^$email/d" /home/email
-sed -i "/^# BEGIN_Backup/,/^# END_Backup/d" /etc/crontab
-service cron restart
-sleep 1
-echo " Please Wait"
-clear
-echo " Autobackup Has Been Stopped"
-exit 0
+# Schedule the encrypted backup command once daily.
+set -euo pipefail
+
+CONF="${KATSU_CONF_DIR:-/etc/katsutun}/backup.conf"
+CRON_FILE=/etc/cron.d/katsu-backup
+
+configured() {
+    [ -r "$CONF" ] || return 1
+    # shellcheck disable=SC1090
+    . "$CONF"
+    [ -n "${RCLONE_REMOTE:-}" ] && [ -n "${BACKUP_EMAIL:-}" ] && [ -n "${BACKUP_ENCRYPTION_PASSWORD:-}" ]
 }
 
-function gantipenerima() {
-rm -rf /home/email
-echo "Please enter your email"
-read -rp "Email : " -e email
-cat <<EOF>>/home/email
-$email
+case "${1:-}" in
+    start)
+        configured || { echo "Atur backup terlebih dahulu melalui backup_setting."; exit 1; }
+        cat > "$CRON_FILE" <<'EOF'
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+5 0 * * * root /usr/bin/backup >> /var/log/katsu-backup.log 2>&1
 EOF
-}
-function gantipengirim() {
-echo "Please enter your email"
-read -rp "Email : " -e email
-echo "Please enter your Password email"
-read -rp "Password : " -e pwdd
-rm -rf /etc/msmtprc
-cat<<EOF>>/etc/msmtprc
-defaults
-tls on
-tls_starttls on
-tls_trust_file /etc/ssl/certs/ca-certificates.crt
-account default
-host smtp.gmail.com
-port 587
-auth on
-user $email
-from $email
-password $pwdd
-logfile ~/.msmtp.log
-EOF
-}
-function testemail() {
-email=$(cat /home/email)
-if [[ "$email" = "" ]]; then
-start
-fi
-email=$(cat /home/email)
-echo -e "
-Ini adalah isi email percobaaan kirim email dari vps
-IP VPS : $IP
-Tanggal : $date
-" | mail -s "Percobaan Pengiriman Email" $email
-}
-clear
-echo -e "=============================="
-echo -e "     Autobackup Data $sts     "
-echo -e "=============================="
-echo -e "1. Start Autobackup"
-echo -e "2. Stop Autobackup"
-echo -e "3. Ganti Email Penerima"
-echo -e "4. Ganti Email Pengirim"
-echo -e "5. Test kirim Email"
-echo -e "=============================="
-read -rp "Please Enter The Correct Number : " -e num
-case $num in
-1)
-start
-;;
-2)
-stop
-;;
-3)
-gantipenerima
-;;
-4)
-gantipengirim
-;;
-5)
-testemail
-;;
-*)
-clear
-;;
+        chmod 644 "$CRON_FILE"
+        echo "Auto backup aktif setiap hari pukul 00:05."
+        ;;
+    stop)
+        rm -f "$CRON_FILE"
+        echo "Auto backup dinonaktifkan."
+        ;;
+    status)
+        [ -f "$CRON_FILE" ] && echo "Auto backup: aktif" || echo "Auto backup: nonaktif"
+        ;;
+    *)
+        echo "1) Aktifkan auto backup  2) Nonaktifkan  3) Atur konfigurasi"
+        read -rp "Pilih: " choice
+        case "$choice" in
+            1) "$0" start ;;
+            2) "$0" stop ;;
+            3) backup_setting ;;
+            *) echo "Pilihan tidak valid"; exit 1 ;;
+        esac
+        ;;
 esac

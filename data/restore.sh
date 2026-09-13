@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 # ==========================================
 # Color
 RED='\033[0;31m'
@@ -16,9 +17,18 @@ echo "This Feature Can Only Be Used According To Vps Data With This Autoscript"
 echo "Please input link to your vps data backup file."
 echo "You can check it on your email if you run backup data vps before."
 read -rp "Link File: " -e url
-wget -O backup.zip "$url"
+read -rsp "Password enkripsi backup: " backup_password
+echo
+if [ -z "$backup_password" ]; then
+    echo "Password enkripsi wajib diisi."
+    exit 1
+fi
+umask 077
+wget -O backup.zip.enc "$url"
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
+  -in backup.zip.enc -out backup.zip -pass pass:"$backup_password"
 unzip backup.zip
-rm -f backup.zip
+rm -f backup.zip backup.zip.enc
 sleep 1
 echo Start Restore
 cd /root/backup
@@ -31,5 +41,5 @@ cp -r xray /etc/
 cp -r public_html /home/vps/
 cp crontab /etc/
 rm -rf /root/backup
-rm -f backup.zip
+rm -f backup.zip backup.zip.enc
 echo Done

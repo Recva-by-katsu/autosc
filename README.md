@@ -1,7 +1,15 @@
 # KatsuTun — Script Autoinstaller for SSHws and Xray
-Mendukung Debian 10 dan Ubuntu 20, silakan yang pakai OS versi lain, rebuild ke versi OS yang didukung (rekomendasi Ubuntu 20)
+Mendukung Debian 10/11/12 dan Ubuntu 20.04/22.04/24.04. Gunakan Ubuntu 22.04
+atau Debian 12 untuk instalasi baru.
 
 NB: These codes are totally free, open source, and all belongs to ©Yudhynet. Me personally just completed some codes
+
+## Kompatibilitas Sistem
+
+Installer memvalidasi sistem sebelum mengubah VPS dan memilih profil instalasi
+berdasarkan RAM/CPU yang tersedia. Rilis yang didukung adalah Ubuntu 20.04,
+22.04, 24.04 dan Debian 10, 11, 12. Dependency dan kesehatan layanan tetap
+perlu diverifikasi pada setiap rilis baru sebelum dipromosikan ke pelanggan.
 
 ## Konfigurasi Repo (pindah repo / fork)
 
@@ -9,7 +17,7 @@ Identitas repo tidak lagi ditulis ulang di tiap script. Semuanya ada di satu
 file, `data/repo.conf`, yang dipasang ke `/etc/katsutun/repo.conf` saat install:
 
 ```
-GH_USER="${GH_USER:-Revaa-Cerza}"
+GH_USER="${GH_USER:-Recva-by-katsu}"
 GH_REPO="${GH_REPO:-autosc}"
 GH_BRANCH="${GH_BRANCH:-main}"
 BRAND="${BRAND:-KatsuTun}"
@@ -68,7 +76,7 @@ Konfigurasi update ada di `/etc/katsutun/update.conf`, sumber repo di
 ### Pilih salah satu dari kedua link di bawah
 Link panjang
 ```
-wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/setup.sh && chmod +x setup.sh && ./setup.sh
+wget https://raw.githubusercontent.com/Recva-by-katsu/autosc/main/setup.sh && chmod +x setup.sh && ./setup.sh
 ```
 Link pendek
 ```
@@ -91,7 +99,7 @@ nano /etc/issue.net
 ### For anyone whos using ISP RUMAHWEB Indonesia or FCCDCI server
 If you encounter when installing the script is taking time so long, change the repository to local one (Data Utama Surabaya, Indonesia), copy and paste this code then run the Installer again
 ```
-wget https://raw.githubusercontent.com/Revaa-Cerza/autosc/main/data/RepoLocal.sh && bash RepoLocal.sh && rm RepoLocal.sh && apt update
+wget https://raw.githubusercontent.com/Recva-by-katsu/autosc/main/data/RepoLocal.sh && bash RepoLocal.sh && rm RepoLocal.sh && apt update
 ```
 
 ## REST API & Dokumentasi
@@ -163,4 +171,13 @@ interaktif, sehingga keduanya bisa dipakai bergantian.
 Service API hanya mendengarkan di `127.0.0.1:8081`; akses publik selalu melewati
 nginx pada domain Anda sehingga terlindungi TLS. Cabut key yang bocor dengan
 `menu-api` → `03`.
+
+## Backup terenkripsi
+
+Backup mencakup konfigurasi dan database akun yang sensitif. Sebelum memakai
+backup, jalankan `rclone config`, lalu buka `menu-backup` → **Backup Settings**
+untuk mengatur remote, email penerima, dan password enkripsi. Arsip diunggah
+dalam format `.zip.enc` menggunakan AES-256-CBC dengan PBKDF2; password itu
+diperlukan kembali saat restore. Kredensial penyimpanan dan SMTP hanya disimpan
+di `/etc/katsutun/backup.conf` (mode `600`), tidak pernah di repository.
 

@@ -33,7 +33,7 @@ fi
 # Satu-satunya tempat identitas repo di-hardcode (bersama data/katsu-update.sh),
 # karena setup.sh diunduh sendirian sebelum repo.conf ada di VPS.
 # Override saat install:  GH_USER=namaku GH_REPO=forkku ./setup.sh
-GH_USER="${GH_USER:-Revaa-Cerza}"
+GH_USER="${GH_USER:-Recva-by-katsu}"
 GH_REPO="${GH_REPO:-autosc}"
 GH_BRANCH="${GH_BRANCH:-main}"
 KATSU_CONF_DIR="${KATSU_CONF_DIR:-/etc/katsutun}"
@@ -56,6 +56,15 @@ bootstrap_repo_conf || exit 1
 # shellcheck source=data/repo.conf
 . "$KATSU_CONF_DIR/repo.conf"
 ############# /Sumber script #############
+
+# Fail early on unsupported releases and persist a small, reusable resource
+# profile for the component installers.
+curl -fsSL "$RAW/data/system-check.sh" -o /tmp/katsu-system-check.sh || {
+    echo "Gagal mengunduh pemeriksa kompatibilitas sistem"
+    exit 1
+}
+bash /tmp/katsu-system-check.sh --write || exit 1
+rm -f /tmp/katsu-system-check.sh
 
 localip=$(hostname -I | cut -d\  -f1)
 hst=( `hostname` )
