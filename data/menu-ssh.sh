@@ -24,7 +24,19 @@ echo -e "$COLOR1┌────────────────────�
 echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• SSH PANEL MENU •              ${NC} $COLOR1 $NC"
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
 echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-read -p "   Username : " Login
+IFS= read -r -p "   Username : " Login
+
+if [ -z "$Login" ]; then
+echo -e "$COLOR1 ${NC} [Error] Username cannot be empty "
+echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
+echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
+echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+echo ""
+read -n 1 -s -r -p "    Press any key to back on menu"
+menu-ssh
+return
+fi
 
 CEKFILE=/etc/xray/ssh.txt
 if [ -f "$CEKFILE" ]; then
@@ -33,7 +45,7 @@ else
 touch /etc/xray/ssh.txt
 fi
 
-if grep -qw "$Login" /etc/xray/ssh.txt; then
+if grep -qw "$Login" /etc/xray/ssh.txt || id "$Login" >/dev/null 2>&1; then
 echo -e "$COLOR1 ${NC}  [Error] Username \e[31m$Login\e[0m already exist"
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
 echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
@@ -42,24 +54,12 @@ echo -e "$COLOR1└────────────────────�
 echo ""
 read -n 1 -s -r -p "  Press any key to go back!"
 menu-ssh
-else
-#echo "$Login" >> /etc/xray/ssh.txt
-:
+return
 fi
 
-if [ -z $Login ]; then
-echo -e "$COLOR1 ${NC} [Error] Username cannot be empty "
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+IFS= read -r -s -p "   Password : " Pass
 echo ""
-read -n 1 -s -r -p "    Press any key to back on menu"
-menu-ssh
-fi
-
-read -p "   Password : " Pass
-if [ -z $Pass ]; then
+if [ -z "$Pass" ]; then
 echo -e "$COLOR1 ${NC}  [Error] Password cannot be empty "
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
 echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
@@ -68,10 +68,11 @@ echo -e "$COLOR1└────────────────────�
 echo ""
 read -n 1 -s -r -p "   Press any key to back on menu"
 menu-ssh
+return
 fi
-read -p "   Expired (hari): " masaaktif
-if [ -z $masaaktif ]; then
-echo -e "$COLOR1 ${NC}  [Error] EXP Date cannot be empty "
+IFS= read -r -p "   Expired (hari): " masaaktif
+if ! [[ "$masaaktif" =~ ^[1-9][0-9]*$ ]]; then
+echo -e "$COLOR1 ${NC}  [Error] Expired days must be a positive number "
 echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
 echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
 echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
@@ -79,6 +80,7 @@ echo -e "$COLOR1└────────────────────�
 echo ""
 read -n 1 -s -r -p "  Press any key to back on menu"
 menu-ssh
+return
 fi
 
 IP=$(curl -sS ifconfig.me);
@@ -93,12 +95,17 @@ ovpn2="$(netstat -nlpu | grep -i openvpn | grep -i 0.0.0.0 | awk '{print $4}' | 
 OhpSSH=`cat /root/log-install.txt | grep -w "OHP SSH" | cut -d: -f2 | awk '{print $1}'`
 OhpDB=`cat /root/log-install.txt | grep -w "OHP DBear" | cut -d: -f2 | awk '{print $1}'`
 OhpOVPN=`cat /root/log-install.txt | grep -w "OHP OpenVPN" | cut -d: -f2 | awk '{print $1}'`
-echo "$Login" >> /etc/xray/ssh.txt
 sleep 1
 clear
-useradd -e `date -d "$masaaktif days" +"%Y-%m-%d"` -s /bin/false -M $Login
-exp="$(chage -l $Login | grep "Account expires" | awk -F": " '{print $2}')"
-echo -e "$Pass\n$Pass\n"|passwd $Login &> /dev/null
+if ! useradd -e "$(date -d "$masaaktif days" +"%Y-%m-%d")" -s /bin/false -M "$Login"; then
+echo -e "$RED [Error] Could not create SSH user $Login${NC}"
+read -n 1 -s -r -p "  Press any key to back on menu"
+menu-ssh
+return
+fi
+printf '%s\n' "$Login" >> /etc/xray/ssh.txt
+exp="$(chage -l "$Login" | grep "Account expires" | awk -F": " '{print $2}')"
+printf '%s\n%s\n' "$Pass" "$Pass" | passwd "$Login" &> /dev/null
 PID=`ps -ef |grep -v grep | grep sshws |awk '{print $2}'`
 
 if [[ ! -z "${PID}" ]]; then
