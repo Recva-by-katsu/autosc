@@ -198,6 +198,13 @@ def create_key(name, scopes=None):
     return public
 
 
+def require_scope(entry, required):
+    """Allow a wildcard key or an explicitly granted least-privilege scope."""
+    scopes = entry.get("scopes") or []
+    if "*" not in scopes and required not in scopes:
+        raise ApiError(403, "forbidden", "API key lacks required scope: %s" % required)
+
+
 def revoke_key(key_id):
     with _keys_lock:
         keys = _load_keys()
@@ -714,10 +721,13 @@ def dispatch(method, path, body, key_entry):
 
     if parts[0] == "system":
         if len(parts) == 2 and parts[1] == "info" and method == "GET":
+            require_scope(key_entry, "system:read")
             return 200, system_info()
         if len(parts) == 2 and parts[1] == "services" and method == "GET":
+            require_scope(key_entry, "system:read")
             return 200, {name: service_active(name) for name in MANAGED_SERVICES}
         if len(parts) == 3 and parts[1] == "services" and parts[2] == "restart" and method == "POST":
+            require_scope(key_entry, "system:write")
             names = body.get("services") or MANAGED_SERVICES
             if not isinstance(names, list):
                 raise ApiError(400, "invalid services", "services must be an array of names")
@@ -725,11 +735,15 @@ def dispatch(method, path, body, key_entry):
         raise ApiError(404, "unknown system route", path)
 
     if parts[0] == "keys":
+        require_scope(key_entry, "keys:manage")
         if len(parts) == 1 and method == "GET":
             return 200, {"keys": list_keys()}
         if len(parts) == 1 and method == "POST":
             name = str(body.get("name") or "unnamed")[:64]
-            return 201, create_key(name)
+            scopes = body.get("scopes") or ["*"]
+            if not isinstance(scopes, list) or not all(isinstance(scope, str) for scope in scopes):
+                raise ApiError(400, "invalid scopes", "scopes must be an array of strings")
+            return 201, create_key(name, scopes)
         if len(parts) == 2 and method == "DELETE":
             if delete_key(parts[1]):
                 return 200, {"id": parts[1], "deleted": True}
@@ -743,14 +757,19 @@ def dispatch(method, path, body, key_entry):
     if parts[0] in ALL_PROTOCOLS:
         proto = parts[0]
         if len(parts) == 1 and method == "GET":
+            require_scope(key_entry, "accounts:read")
             return 200, handle_account_list(proto)
         if len(parts) == 1 and method == "POST":
+            require_scope(key_entry, "accounts:write")
             return 201, handle_account_create(proto, body)
         if len(parts) == 2 and parts[1] == "online" and proto == "ssh" and method == "GET":
+            require_scope(key_entry, "accounts:read")
             return 200, {"online": ssh_online_users()}
         if len(parts) == 2 and method == "DELETE":
+            require_scope(key_entry, "accounts:write")
             return 200, handle_account_delete(proto, parts[1])
         if len(parts) == 3 and parts[2] == "renew" and method == "POST":
+            require_scope(key_entry, "accounts:write")
             return 200, handle_account_renew(proto, parts[1], body)
         raise ApiError(404, "unknown account route", path)
 

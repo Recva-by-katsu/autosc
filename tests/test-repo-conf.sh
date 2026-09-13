@@ -25,7 +25,7 @@ echo "== no hardcoded repo slug outside the bootstrap files"
 # repo.conf exists on the VPS. README.md documents the installer URL.
 allowed="setup.sh|data/katsu-update.sh|data/repo.conf|data/RepoLocal.sh|README.md|tests/.*"
 hits=$(git ls-files | grep -vE "^($allowed)$" |
-        xargs grep -n "Revaa-Cerza\|raw\.githubusercontent\.com/[A-Za-z0-9_-]*/autosc" 2>/dev/null)
+        xargs grep -n "Recva-by-katsu\|raw\.githubusercontent\.com/[A-Za-z0-9_-]*/autosc" 2>/dev/null)
 if [ -z "$hits" ]; then ok "only bootstrap files carry the slug"; else
     fail "hardcoded slug found:"; echo "$hits" | sed 's/^/       /'
 fi

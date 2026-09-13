@@ -2,7 +2,7 @@
 # Dijalankan sebelum installer, jadi repo.conf belum tentu ada.
 # shellcheck source=data/repo.conf
 [ -r /etc/katsutun/repo.conf ] && . /etc/katsutun/repo.conf
-REPO_URL="${REPO_URL:-https://github.com/Revaa-Cerza/autosc}"
+REPO_URL="${REPO_URL:-https://github.com/Recva-by-katsu/autosc}"
 
 os=$(lsb_release -si)
 version=$(lsb_release -sr)

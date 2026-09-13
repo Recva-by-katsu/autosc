@@ -18,23 +18,38 @@ LIGHT='\033[0;37m'
 # Getting
 MYIP=$(wget -qO- ipinfo.io/ip);
 
-# Fallback bila repo.conf berasal dari instalasi lama yang belum punya kunci ini.
-BACKUP_SMTP_HOST="${BACKUP_SMTP_HOST:-smtp.gmail.com}"
-BACKUP_SMTP_PORT="${BACKUP_SMTP_PORT:-587}"
-BACKUP_SMTP_USER="${BACKUP_SMTP_USER:-bckupvpns@gmail.com}"
-BACKUP_SMTP_PASS="${BACKUP_SMTP_PASS:-Yangbaru1Yangbaru1cuj}"
+CONF_DIR="${KATSU_CONF_DIR:-/etc/katsutun}"
+BACKUP_CONF="$CONF_DIR/backup.conf"
 
-apt install rclone -y
-printf "q\n" | rclone config
-wget -O /root/.config/rclone/rclone.conf "$RAW/data/rclone.conf"
+apt install rclone msmtp-mta ca-certificates bsd-mailx -y
+mkdir -p "$CONF_DIR"
+if [ ! -s "$BACKUP_CONF" ]; then
+cat > "$BACKUP_CONF" <<'EOF'
+# Private backup configuration. Keep this file mode 600 and never commit it.
+# Configure a named remote first: rclone config
+RCLONE_REMOTE=""
+BACKUP_EMAIL=""
+BACKUP_ENCRYPTION_PASSWORD=""
+
+# Optional SMTP delivery. Leave blank when the VPS already has a local MTA.
+BACKUP_SMTP_HOST=""
+BACKUP_SMTP_PORT="587"
+BACKUP_SMTP_USER=""
+BACKUP_SMTP_PASS=""
+EOF
+chmod 600 "$BACKUP_CONF"
+fi
+
+# shellcheck disable=SC1090
+. "$BACKUP_CONF"
 git clone  https://github.com/magnific0/wondershaper.git
 cd wondershaper
 make install
 cd
 rm -rf wondershaper
 echo > /home/limit
-apt install msmtp-mta ca-certificates bsd-mailx -y
-cat<<EOF>>/etc/msmtprc
+if [ -n "${BACKUP_SMTP_HOST:-}" ] && [ -n "${BACKUP_SMTP_USER:-}" ] && [ -n "${BACKUP_SMTP_PASS:-}" ]; then
+cat >/etc/msmtprc <<EOF
 defaults
 tls on
 tls_starttls on
@@ -49,7 +64,9 @@ from $BACKUP_SMTP_USER
 password $BACKUP_SMTP_PASS
 logfile ~/.msmtp.log
 EOF
-chown -R www-data:www-data /etc/msmtprc
+chmod 600 /etc/msmtprc
+chown root:root /etc/msmtprc
+fi
 cd /usr/bin
 wget -O autobackup "$RAW/data/autobackup.sh"
 wget -O backup "$RAW/data/backup.sh"
@@ -61,3 +78,5 @@ chmod +x restore
 chmod +x limitspeed
 cd
 rm -f /root/set-br.sh
+echo "[INFO] Konfigurasi backup: $BACKUP_CONF"
+echo "[INFO] Jalankan 'rclone config', lalu isi RCLONE_REMOTE, BACKUP_EMAIL, dan BACKUP_ENCRYPTION_PASSWORD."

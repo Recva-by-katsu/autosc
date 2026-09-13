@@ -5,6 +5,7 @@
 
 # --- updater & main menu
 data/katsu-update.sh            /usr/bin/katsu-update           755
+data/system-check.sh            /usr/bin/katsu-system-check     755
 data/update.sh                  /usr/bin/update                 755
 data/menu.sh                    /usr/bin/menu                   755
 data/menu-update.sh             /usr/bin/menu-update            755
@@ -38,9 +39,9 @@ data/auto-set.sh                /usr/bin/auto-set               755
 data/crt.sh                     /usr/bin/crtxray                755
 data/bbr.sh                     /usr/bin/bbr                    755
 data/addons/clear-log           /usr/bin/clear-log              755
-data/v1.1.0/backup.sh           /usr/bin/backup                 755
-data/v1.1.0/restore.sh          /usr/bin/restore                755
-data/v1.1.0/autobackup.sh       /usr/bin/autobackup             755
+data/backup.sh                  /usr/bin/backup                 755
+data/restore.sh                 /usr/bin/restore                755
+data/autobackup.sh              /usr/bin/autobackup             755
 data/v1.1.0/bset.sh             /usr/bin/backup_setting         755
 
 # --- hidessh plugin
