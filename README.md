@@ -72,6 +72,14 @@ Konfigurasi update ada di `/etc/katsutun/update.conf`, sumber repo di
 > Menambah file baru ke script? Daftarkan di `data/manifest.txt`
 > (`<path repo> <path install> <mode> [service]`) supaya ikut terpasang otomatis.
 
+## Dashboard Terminal
+
+Perintah `menu` membuka dashboard KatsuTun yang menampilkan domain, penggunaan
+memori, status layanan inti, dan pintasan ke seluruh panel. Tampilan menggunakan
+accent warna yang dapat dipilih lewat **Appearance** (`menu` → `07`) dan tetap
+memakai fungsi menu lama di balik setiap pilihan. Untuk terminal lama yang tidak
+mendukung karakter kotak Unicode, jalankan `KATSU_ASCII=1 menu`.
+
 ## Installer
 ### Pilih salah satu dari kedua link di bawah
 Link panjang

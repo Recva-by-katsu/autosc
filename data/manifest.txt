@@ -6,6 +6,7 @@
 # --- updater & main menu
 data/katsu-update.sh            /usr/bin/katsu-update           755
 data/system-check.sh            /usr/bin/katsu-system-check     755
+data/katsu-ui.sh                /usr/local/lib/katsutun/ui.sh   644
 data/update.sh                  /usr/bin/update                 755
 data/menu.sh                    /usr/bin/menu                   755
 data/menu-update.sh             /usr/bin/menu-update            755

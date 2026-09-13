@@ -1,181 +1,110 @@
 #!/bin/bash
-# Identitas repo hanya ada di /etc/katsutun/repo.conf (lihat data/repo.conf).
-# katsu-update menulis ulang file itu bila hilang, jadi $RAW selalu terisi.
 [ -r /etc/katsutun/repo.conf ] || katsu-update status >/dev/null 2>&1
 # shellcheck source=data/repo.conf
 . /etc/katsutun/repo.conf
-#dateFromServer=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
-#biji=`date +"%Y-%m-%d" -d "$dateFromServer"`
-###########- COLOR CODE -##############
-colornow=$(cat /etc/yudhynetwork/theme/color.conf)
-export NC="\e[0m"
-export YELLOW='\033[0;33m';
-export RED="\033[0;31m" 
-export COLOR1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "TEXT" | cut -d: -f2|sed 's/ //g')"
-export COLBG1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "BG" | cut -d: -f2|sed 's/ //g')" 
-WH='\033[1;37m'                   
-###########- Yudhy network-##########
-# RAM USAGE
-tram=$(free -m | awk 'NR==2 {print $2}')
-uram=$(free -m | awk 'NR==2 {print $3}')
-freeram=$(($tram - $uram))
 
-ISP=$(cat /etc/lukman/isp)
-CITY=$(cat /etc/lukman/city)
-export RED='\033[0;31m'
-export GREEN='\033[0;32m'
+UI_LIB=/usr/local/lib/katsutun/ui.sh
+[ -r "$UI_LIB" ] || { echo "KatsuTun UI library is missing. Run: katsu-update apply --force"; exit 1; }
+# shellcheck source=data/katsu-ui.sh
+. "$UI_LIB"
+ui_init
 
-# // SSH Websocket Proxy
-ssh_ws=$( systemctl status ws-stunnel | grep Active | awk '{print $3}' | sed 's/(//g' | sed 's/)//g' )
-if [[ $ssh_ws == "running" ]]; then
-    status_ws="${COLOR1}ON${NC}"
-else
-    status_ws="${RED}OFF${NC}"
-fi
+service_status() {
+    if systemctl is-active --quiet "$1" 2>/dev/null; then
+        printf '%bONLINE%b' "$UI_GOOD" "$UI_RESET"
+    else
+        printf '%bOFFLINE%b' "$UI_BAD" "$UI_RESET"
+    fi
+}
+read_value() { cat "$1" 2>/dev/null || printf '%s' "$2"; }
 
-# // nginx
-nginx=$( systemctl status nginx | grep Active | awk '{print $3}' | sed 's/(//g' | sed 's/)//g' )
-if [[ $nginx == "running" ]]; then
-    status_nginx="${COLOR1}ON${NC}"
-else
-    status_nginx="${RED}OFF${NC}"
-fi
-
-# // SSH Websocket Proxy
-xray=$( systemctl status xray | grep Active | awk '{print $3}' | sed 's/(//g' | sed 's/)//g' )
-if [[ $xray == "running" ]]; then
-    status_xray="${COLOR1}ON${NC}"
-else
-    status_xray="${RED}OFF${NC}"
-fi
-
-# // Autoscript REST API
-api=$( systemctl is-active autosc-api 2>/dev/null )
-if [[ $api == "active" ]]; then
-    status_api="${COLOR1}ON${NC}"
-else
-    status_api="${RED}OFF${NC}"
-fi
-
-function add-host(){
-clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• ADD VPS HOST •                ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-read -rp "  New Host Name : " -e host
-echo ""
-if [ -z $host ]; then
-echo -e "  [INFO] Type Your Domain/sub domain"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo ""
-read -n 1 -s -r -p "  Press any key to back on menu"
-menu
-else
-echo "IP=$host" > /var/lib/yudhynetwork-pro/ipvps.conf
-echo ""
-echo "  [INFO] Dont forget to renew cert"
-echo ""
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo ""
-read -n 1 -s -r -p "  Press any key to Renew Cret"
-crtxray
-fi
+set_domain() {
+    ui_clear
+    ui_header "SET DOMAIN" "TLS CONFIGURATION"
+    ui_card_start
+    ui_notice "Enter the domain or subdomain used by this VPS."
+    ui_card_end
+    printf '\n%b›%b New domain: ' "$UI_ACCENT" "$UI_RESET"
+    read -r new_domain
+    if [ -z "$new_domain" ]; then
+        ui_notice "${UI_WARN}No domain entered. Nothing was changed.${UI_RESET}"
+        printf 'Press any key to return…'; read -r -n 1 -s
+        exec menu
+    fi
+    printf 'IP=%s\n' "$new_domain" > /var/lib/yudhynetwork-pro/ipvps.conf
+    printf '%s\n' "$new_domain" > /etc/xray/domain
+    ui_card_start
+    ui_notice "${UI_GOOD}✓${UI_RESET} Domain saved. Renew the certificate to activate it."
+    ui_card_end
+    printf 'Press any key to renew the certificate…'; read -r -n 1 -s
+    exec crtxray
 }
 
-
-function updatews(){
-update
-echo ""
-read -n 1 -s -r -p "  Press any key to go back!"
-menu
-}
-clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• VPS PANEL MENU •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-uphours=`uptime -p | awk '{print $2,$3}' | cut -d , -f1`
-upminutes=`uptime -p | awk '{print $4,$5}' | cut -d , -f1`
-uptimecek=`uptime -p | awk '{print $6,$7}' | cut -d , -f1`
-cekup=`uptime -p | grep -ow "day"`
-IPVPS=$(cat /etc/lukman/ip)
-sensored_ip=$(echo $IPVPS | sed 's/\.[0-9]*\.[0-9]*$/.*.*/')
-
-# Update state is refreshed by the katsu-update cron; no network call here.
+ssh_status=$(service_status ws-stunnel)
+xray_status=$(service_status xray)
+nginx_status=$(service_status nginx)
+api_status=$(service_status autosc-api)
+memory_total=$(free -m 2>/dev/null | awk 'NR==2 {print $2}')
+memory_used=$(free -m 2>/dev/null | awk 'NR==2 {print $3}')
+memory_free=$(( ${memory_total:-0} - ${memory_used:-0} ))
+uptime_value=$(uptime -p 2>/dev/null | sed 's/^up //')
+domain=$(read_value /etc/xray/domain 'not configured')
+public_ip=$(read_value /etc/lukman/ip 'unavailable')
+version=$(read_value /opt/.ver 'unknown')
 eval "$(katsu-update status 2>/dev/null | grep -E '^(STATE|AUTO_UPDATE|LATEST)=')"
-if [[ "$AUTO_UPDATE" == "on" ]]; then status_upd="${COLOR1}AUTO${NC}"; else status_upd="${RED}MANUAL${NC}"; fi
+if [ "${AUTO_UPDATE:-on}" = on ]; then update_status="${UI_GOOD}AUTO${UI_RESET}"; else update_status="${UI_WARN}MANUAL${UI_RESET}"; fi
 
-uis="${COLOR1}Premium Version$NC"
-echo -e "$COLOR1 $NC ${WH}User Roles     ${COLOR1}: ${WH}$uis"
-if [ "$cekup" = "day" ]; then
-echo -e "$COLOR1 $NC ${WH}System Uptime  ${COLOR1}: ${WH}$uphours $upminutes $uptimecek"
-else
-echo -e "$COLOR1 $NC ${WH}System Uptime  ${COLOR1}: ${WH}$uphours $upminutes"
+ui_clear
+ui_header "VPS DASHBOARD" "SECURE SERVER AUTOMATION"
+ui_card_start
+ui_kv "DOMAIN" "$domain"
+ui_kv "PUBLIC IP" "$public_ip"
+ui_kv "UPTIME" "${uptime_value:-unavailable}"
+ui_kv "MEMORY" "${memory_used:-?} MB used • ${memory_free} MB available"
+ui_card_end
+ui_card_start
+ui_kv "SSH WEBSOCKET" "$ssh_status       XRAY  $xray_status"
+ui_kv "NGINX" "$nginx_status       API   $api_status"
+ui_card_end
+ui_card_start
+ui_menu_pair 1 "SSH & OPENVPN" "$ssh_status" 7 "APPEARANCE" "THEMES"
+ui_menu_pair 2 "VMESS" "$xray_status" 8 "BACKUP & RESTORE" "TOOLS"
+ui_menu_pair 3 "VLESS" "$xray_status" 9 "SET DOMAIN" "TLS"
+ui_menu_pair 4 "TROJAN" "$xray_status" 10 "RENEW CERTIFICATE" "TLS"
+ui_menu_pair 5 "SHADOWSOCKS" "$xray_status" 11 "SERVER SETTINGS" "TOOLS"
+ui_menu_pair 6 "DNS MANAGER" "TOOLS" 12 "SYSTEM INFO" "VIEW"
+ui_menu_pair 13 "REST API" "$api_status" 14 "UPDATE MANAGER" "$update_status"
+ui_blank
+ui_menu_item 0 "EXIT PANEL" "LOGOUT"
+ui_card_end
+if [ "${STATE:-uptodate}" = available ]; then
+    ui_card_start
+    ui_notice "${UI_WARN}●${UI_RESET} Update available: ${LATEST:-new version}. Select ${UI_TEXT}14${UI_RESET} to review it."
+    ui_card_end
 fi
-echo -e "$COLOR1 $NC ${WH}Memory Usage   ${COLOR1}: ${COLOR1}${uram}${NC}MB / ${COLOR1}${tram}${NC}MB (${COLOR1}${freeram}${NC}MB free)"
-echo -e "$COLOR1 $NC ${WH}ISP & City     ${COLOR1}: ${WH}$ISP & $CITY"
-echo -e "$COLOR1 $NC ${WH}Current Domain ${COLOR1}: ${WH}$(cat /etc/xray/domain)"
-echo -e "$COLOR1 $NC ${WH}IP-VPS         ${COLOR1}: ${WH}$sensored_ip${NC}"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 $NC ${WH}[ SSH WS : ${status_ws} ${WH}]  ${WH}[ XRAY : ${status_xray} ${WH}]   ${WH}[ NGINX : ${status_nginx} ${WH}] $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "  ${WH}[${COLOR1}01${WH}]${NC} ${COLOR1}• ${WH}SSHWS   ${WH}[${COLOR1}${status_ws}${WH}]   ${WH}[${COLOR1}07${WH}]${NC} ${COLOR1}• ${WH}THEME    ${WH}[${COLOR1}Menu${WH}]  $COLOR1 $NC"   
-echo -e "  ${WH}[${COLOR1}02${WH}]${NC} ${COLOR1}• ${WH}VMESS   ${WH}[${COLOR1}${status_xray}${WH}]   ${WH}[${COLOR1}08${WH}]${NC} ${COLOR1}• ${WH}BACKUP   ${WH}[${COLOR1}Menu${WH}]  $COLOR1 $NC"  
-echo -e "  ${WH}[${COLOR1}03${WH}]${NC} ${COLOR1}• ${WH}VLESS   ${WH}[${COLOR1}${status_xray}${WH}]   ${WH}[${COLOR1}09${WH}]${NC} ${COLOR1}• ${WH}ADD HOST/DOMAIN  $COLOR1 $NC"  
-echo -e "  ${WH}[${COLOR1}04${WH}]${NC} ${COLOR1}• ${WH}TROJAN  ${WH}[${COLOR1}${status_xray}${WH}]   ${WH}[${COLOR1}10${WH}]${NC} ${COLOR1}• ${WH}RENEW CERT       $COLOR1 $NC"  
-echo -e "  ${WH}[${COLOR1}05${WH}]${NC} ${COLOR1}• ${WH}SS WS   ${WH}[${COLOR1}ON${WH}]   ${WH}[${COLOR1}11${WH}]${NC} ${COLOR1}• ${WH}SETTINGS ${WH}[${COLOR1}Menu${WH}]  $COLOR1 $NC"
-echo -e "  ${WH}[${COLOR1}06${WH}]${NC} ${COLOR1}• ${WH}SET DNS ${WH}[${COLOR1}Menu${WH}] ${WH}[${COLOR1}12${WH}]${NC} ${COLOR1}• ${WH}INFO     ${WH}[${COLOR1}Menu${WH}]  $COLOR1 $NC"
-echo -e "  ${WH}[${COLOR1}13${WH}]${NC} ${COLOR1}• ${WH}API     ${WH}[${COLOR1}${status_api}${WH}]   ${WH}[${COLOR1}14${WH}]${NC} ${COLOR1}• ${WH}UPDATE   ${WH}[${COLOR1}${status_upd}${WH}]  $COLOR1 $NC"
-echo ""
-echo -e "  ${WH}[${COLOR1}00${WH}]${NC} ${COLOR1}• ${WH}EXIT  $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-myver="$(cat /opt/.ver)"
+ui_card_start
+ui_kv "VERSION" "$version • Source: ${REPO_URL:-unknown}"
+ui_card_end
+ui_footer
+ui_prompt
+read -r opt
 
-if [[ "$STATE" == "available" ]]; then
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 $NC ${WH}[${COLOR1}100${WH}]${NC} ${COLOR1}• ${RED}UPDATE KATSUTUN TO THE NEWEST ${WH}${LATEST}${NC} " 
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-ltsver="『${COLOR1}Update Available${WH}』"
-up2u="updatews"
-else
-ltsver="『${COLOR1}Latest${WH}』"
-up2u="menu"
-fi
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐$NC"
-echo -e "$COLOR1 $NC ${WH}Version     ${COLOR1}:${WH} $(cat /opt/.ver) $ltsver${NC}"
-echo -e "$COLOR1 $NC ${WH}Client Name ${COLOR1}: ${WH}$REPO_URL 🇮🇩${NC}"
-echo -e "$COLOR1 $NC ${WH}License     ${COLOR1}: ${WH}Lifetime${NC}"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘$NC"
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e ""
-dgrade() {
-echo "0.0.1" > /opt/.ver
-menu
-}
-echo -ne " ${WH}Select menu ${COLOR1}: ${WH}"; read opt
 case $opt in
-01 | 1) clear ; menu-ssh ;;
-02 | 2) clear ; menu-vmess ;;
-03 | 3) clear ; menu-vless ;;
-04 | 4) clear ; menu-trojan ;;
-05 | 5) clear ; menu-ss ;;
-06 | 6) clear ; menu-dns ;;
-07 | 7) clear ; menu-theme ;;
-08 | 8) clear ; menu-backup ;;
-09 | 9) clear ; add-host ;;
-10) clear ; crtxray ;;
-11) clear ; menu-set ;;
-12) clear ; info ;;
-13) clear ; menu-api ;;
-14) clear ; menu-update ;;
-99) dgrade ;;
-100) clear ; $up2u ;;
-x) exit ;;
-00 | 0) exit ;;
-*) clear ; menu ;;
+    01|1) clear; exec menu-ssh ;;
+    02|2) clear; exec menu-vmess ;;
+    03|3) clear; exec menu-vless ;;
+    04|4) clear; exec menu-trojan ;;
+    05|5) clear; exec menu-ss ;;
+    06|6) clear; exec menu-dns ;;
+    07|7) clear; exec menu-theme ;;
+    08|8) clear; exec menu-backup ;;
+    09|9) set_domain ;;
+    10) clear; crtxray ;;
+    11) clear; exec menu-set ;;
+    12) clear; exec info ;;
+    13) clear; exec menu-api ;;
+    14) clear; exec menu-update ;;
+    100) clear; update; read -r -n 1 -s; exec menu ;;
+    00|0|x|X) clear; exit 0 ;;
+    *) clear; exec menu ;;
 esac
