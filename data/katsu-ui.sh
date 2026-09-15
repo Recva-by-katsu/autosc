@@ -31,10 +31,15 @@ ui_init() {
 
 ui_clear() { clear; }
 ui_line() { printf '%b%b%b%b\n' "$UI_ACCENT" "$UI_V" "  $*" "$UI_RESET"; }
-ui_edge() { printf '%b%b%b%b%b\n' "$UI_ACCENT" "$1" "$(printf '%*s' 57 '' | tr ' ' "$UI_H")" "$2" "$UI_RESET"; }
+ui_rule() {
+    local i
+    # Repeat whole UTF-8 characters; tr replaces bytes, not characters.
+    for ((i = 0; i < 57; i++)); do printf '%s' "$UI_H"; done
+}
+ui_edge() { printf '%b%s%s%s%b\n' "$UI_ACCENT" "$1" "$(ui_rule)" "$2" "$UI_RESET"; }
 ui_top() { ui_edge "$UI_TL" "$UI_TR"; }
 ui_bottom() { ui_edge "$UI_BL" "$UI_BR"; }
-ui_divider() { printf '%b%b%b%b%b\n' "$UI_ACCENT" "$UI_V" "$(printf '%*s' 57 '' | tr ' ' "$UI_H")" "$UI_V" "$UI_RESET"; }
+ui_divider() { ui_edge "$UI_V" "$UI_V"; }
 ui_blank() { ui_line ''; }
 
 ui_header() {
