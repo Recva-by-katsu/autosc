@@ -203,13 +203,8 @@ ui_line "${WH}Path        ${COLOR1}: ${WH}/trojan (/Custom path)"
 ui_line "${WH}Path WSS    ${COLOR1}: ${WH}wss://${domain}/trojan (/Custom path)"
 ui_line "${WH}ServiceName ${COLOR1}: ${WH}trojan-grpc"
 ui_card_end
-ui_card_start
-ui_line "${WH}Link WS ${COLOR1}: ${NC}"
-ui_line "${trojanlink}"
-ui_blank
-ui_line "${WH}Link GRPC ${COLOR1}: ${NC}"
-ui_line "${trojanlink1}"
-ui_card_end
+ui_copy "Link WebSocket TLS" "$trojanlink"
+ui_copy "Link gRPC" "$trojanlink1"
 echo ""
 ui_pause
 menu-trojan

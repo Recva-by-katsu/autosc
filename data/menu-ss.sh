@@ -288,15 +288,9 @@ ui_line "${WH}Network     ${COLOR1}: ${WH}ws/grpc"
 ui_line "${WH}Path        ${COLOR1}: ${WH}/ss-ws"
 ui_line "${WH}ServiceName ${COLOR1}: ${WH}ss-grpc"
 ui_card_end
-ui_card_start
-ui_line "${WH}Link TLS ${COLOR1}: ${NC}"
-ui_line "${shadowsockslink}"
-ui_blank
-ui_line "${WH}Link GRPC ${COLOR1}: ${NC}"
-ui_line "${shadowsockslink1}"
-ui_blank
-ui_line "Link JSON : http://${domain}:81/ss-ws/ss-$user.txt"
-ui_card_end
+ui_copy "Link WebSocket TLS" "$shadowsockslink"
+ui_copy "Link gRPC" "$shadowsockslink1"
+ui_copy "Link JSON" "http://${domain}:81/ss-ws/ss-$user.txt"
 echo ""
 ui_pause
 menu-ss
