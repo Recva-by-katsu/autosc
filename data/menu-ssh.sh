@@ -51,8 +51,7 @@ menu-ssh
 return
 fi
 
-IFS= read -r -s -p "   Password : " Pass
-echo ""
+IFS= read -r -p "   Password : " Pass
 if [ -z "$Pass" ]; then
 ui_line "[Error] Password cannot be empty "
 ui_card_end
@@ -93,7 +92,21 @@ return
 fi
 printf '%s\n' "$Login" >> /etc/xray/ssh.txt
 exp="$(chage -l "$Login" | grep "Account expires" | awk -F": " '{print $2}')"
-printf '%s\n%s\n' "$Pass" "$Pass" | passwd "$Login" &> /dev/null
+# chpasswd -c hashes locally and bypasses PAM pwquality, so short customer
+# passwords always apply (passwd rejected them silently). Undo on failure.
+if ! printf '%s:%s\n' "$Login" "$Pass" | chpasswd -c SHA512 2>/tmp/katsu-passwd.err; then
+userdel "$Login" >/dev/null 2>&1
+sed -i "/^$Login\$/d" /etc/xray/ssh.txt
+ui_card_start
+ui_err "Could not set password for $Login"
+ui_line "$(head -c 200 /tmp/katsu-passwd.err)"
+ui_card_end
+rm -f /tmp/katsu-passwd.err
+ui_pause
+menu-ssh
+return
+fi
+rm -f /tmp/katsu-passwd.err
 PID=`ps -ef |grep -v grep | grep sshws |awk '{print $2}'`
 
 if [[ ! -z "${PID}" ]]; then
@@ -357,8 +370,6 @@ Expiration=$(date -u --date="1970-01-01 $Expire_On sec GMT" +%Y/%m/%d)
 Expiration_Display=$(date -u --date="1970-01-01 $Expire_On sec GMT" '+%d %b %Y')
 passwd -u $User
 usermod -e  $Expiration $User
-egrep "^$User" /etc/passwd >/dev/null
-echo -e "$Pass\n$Pass\n"|passwd $User &> /dev/null
 clear
 ui_title "RENEW SSH ACCOUNT"
 ui_card_start
@@ -433,9 +444,9 @@ sleep 0.5
 echo Setting Password: $Pass &> /dev/null
 sleep 0.5
 clear
-useradd -e `date -d "$masaaktif days" +"%Y-%m-%d"` -s /bin/false -M $Login
+useradd -e "$(date -d "$hari days" +"%Y-%m-%d")" -s /bin/false -M "$Login"
 exp="$(chage -l $Login | grep "Account expires" | awk -F": " '{print $2}')"
-echo -e "$Pass\n$Pass\n"|passwd $Login &> /dev/null
+printf '%s:%s\n' "$Login" "$Pass" | chpasswd -c SHA512
 PID=`ps -ef |grep -v grep | grep sshws |awk '{print $2}'`
 
 if [[ ! -z "${PID}" ]]; then
