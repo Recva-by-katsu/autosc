@@ -22,6 +22,7 @@ sleep 2
 echo -e "$COLOR1│${NC}  $COLOR1[INFO]${NC} Downloading New Script"
 
 mkdir -p /usr/local/lib/katsutun
+wget -q -O /usr/bin/katsu-dashboard "$RAW/data/dashboard.py" && chmod 755 /usr/bin/katsu-dashboard
 wget -q -O /usr/local/lib/katsutun/ui.sh "$RAW/data/katsu-ui.sh" && chmod 644 /usr/local/lib/katsutun/ui.sh
 wget -q -O /usr/bin/menu "$RAW/data/menu.sh" && chmod +x /usr/bin/menu
 wget -q -O /usr/bin/menu-ss "$RAW/data/menu-ss.sh" && chmod +x /usr/bin/menu-ss

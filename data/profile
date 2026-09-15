@@ -1,6 +1,6 @@
 # ~/.profile: executed by Bourne-compatible login shells.
 
-if [ /bin/bash ]; then
+if [ -n "${BASH_VERSION:-}" ]; then
   if [ -f ~/.bashrc ]; then
     . ~/.bashrc
   fi
@@ -11,18 +11,11 @@ mesg n 2> /dev/null || true
 ##########################################
 PS1='\[\e[1;33m\]\u@\h\[\e[0m\]:\w\$ '
 
-clear
-/root/profile/./wc; clear
-python3 /root/profile/art
-vnstat -m
-
-echo ""
-read -n 1 -p "Press enter to use menu command or x to exit " titit
-echo ""
-if [ -z $titit ]; then
-  menu; echo ""
-elif [ $titit = "x" ]; then
-  :
-else
-  /root/profile/./profile2; echo ""
-fi
+case $- in
+  *i*)
+    if [ -t 1 ] && command -v katsu-dashboard >/dev/null 2>&1; then
+      clear
+      katsu-dashboard
+    fi
+    ;;
+esac
