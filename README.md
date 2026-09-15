@@ -4,6 +4,41 @@ atau Debian 12 untuk instalasi baru.
 
 NB: These codes are totally free, open source, and all belongs to ©Yudhynet. Me personally just completed some codes
 
+## Dashboard terminal
+
+Login interaktif menampilkan `katsu-dashboard`: header biru, informasi VPS,
+status layanan, jumlah akun, metadata script, dan bandwidth, mengikuti contoh
+GEMILANG KINASIH STORE. Ketik `menu` untuk membuka pengelolaan akun dan tools;
+nomor menu 01–14 tetap sama. Login tidak lagi menunggu tombol atau memutar ASCII art.
+
+Dashboard maksimal 60 kolom (minimum 32); terminal sempit menumpuk status dan
+bandwidth agar tidak meluber. Gunakan font monospace UTF-8 dan latar `#111526`
+di JuiceSSH untuk mendekati contoh. `KATSU_ASCII=1 katsu-dashboard` memakai garis
+ASCII; `NO_COLOR=1 katsu-dashboard` menonaktifkan warna.
+
+Opsional: isi `/etc/katsutun/dashboard.json` (tidak ditimpa updater):
+
+```json
+{
+  "title": "GEMILANG KINASIH STORE",
+  "username": "nama-pengelola",
+  "interface": "eth0"
+}
+```
+
+`username` default adalah user Linux saat ini. Field opsional `expires` memakai
+format `YYYY-MM-DD` dan hanya metadata tampilan, **bukan enforcement lisensi**;
+tanpa konfigurasi tampil `N/A [NOT CONFIGURED]`, bukan tanggal fiktif. Label
+`LOCAL` menandai identitas lokal, bukan hasil pemeriksaan lisensi online.
+`PROXY` memeriksa Xray, `NGINX` memeriksa nginx, `SSHWS` memeriksa ws-stunnel.
+Jumlah akun Xray dihitung unik per username agar WS/gRPC tidak dihitung ganda;
+SSH memakai daftar akun script, bukan seluruh user Linux.
+
+Bandwidth `M` berarti MiB (RX + TX), memakai vnStat JSON v2 pada interface rute
+default atau `interface` di konfigurasi. Data yang hilang, vnStat lama, atau
+interface yang tidak dapat ditentukan ditampilkan `N/A`, bukan nol palsu.
+Tes: `python3 tests/test-dashboard.py` dan `python3 tests/test-ui.py`.
+
 ## Kompatibilitas Sistem
 
 Installer memvalidasi sistem sebelum mengubah VPS dan memilih profil instalasi
