@@ -6,13 +6,15 @@
 . /etc/katsutun/repo.conf
 #dateFromServer=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
 #biji=`date +"%Y-%m-%d" -d "$dateFromServer"`
-###########- COLOR CODE -##############
-colornow=$(cat /etc/yudhynetwork/theme/color.conf)
-NC="\e[0m"
-RED="\033[0;31m" 
-COLOR1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "TEXT" | cut -d: -f2|sed 's/ //g')"
-COLBG1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "BG" | cut -d: -f2|sed 's/ //g')" 
-WH='\033[1;37m'                   
+UI_LIB=/usr/local/lib/katsutun/ui.sh
+[ -r "$UI_LIB" ] || { echo "KatsuTun UI library is missing. Run: katsu-update apply --force"; exit 1; }
+# shellcheck source=data/katsu-ui.sh
+. "$UI_LIB"
+ui_init
+red="$UI_BAD"; green="$UI_GOOD"; yell="$UI_WARN"; tyblue="$UI_ACCENT"
+# Legacy palette names used by the screens below now map onto the shared theme.
+NC="$UI_RESET"; RED="$UI_BAD"; GREEN="$UI_GOOD"; YELLOW="$UI_WARN"
+COLOR1="$UI_ACCENT"; COLBG1="$UI_BAR"; WH="$UI_TEXT"
 ###########- KatsuTun -##########
 function addssh(){
 clear
@@ -20,20 +22,15 @@ domen=`cat /etc/xray/domain`
 portsshws=`cat ~/log-install.txt | grep -w "SSH Websocket" | cut -d: -f2 | awk '{print $1}'`
 wsssl=`cat /root/log-install.txt | grep -w "SSH SSL Websocket" | cut -d: -f2 | awk '{print $1}'`
 
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• SSH PANEL MENU •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "SSH PANEL MENU"
+ui_card_start
 IFS= read -r -p "   Username : " Login
 
 if [ -z "$Login" ]; then
-echo -e "$COLOR1 ${NC} [Error] Username cannot be empty "
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_line "[Error] Username cannot be empty "
+ui_card_end
 echo ""
-read -n 1 -s -r -p "    Press any key to back on menu"
+ui_pause
 menu-ssh
 return
 fi
@@ -46,13 +43,10 @@ touch /etc/xray/ssh.txt
 fi
 
 if grep -qw "$Login" /etc/xray/ssh.txt || id "$Login" >/dev/null 2>&1; then
-echo -e "$COLOR1 ${NC}  [Error] Username \e[31m$Login\e[0m already exist"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_line "[Error] Username \e[31m$Login\e[0m already exist"
+ui_card_end
 echo ""
-read -n 1 -s -r -p "  Press any key to go back!"
+ui_pause
 menu-ssh
 return
 fi
@@ -60,25 +54,19 @@ fi
 IFS= read -r -s -p "   Password : " Pass
 echo ""
 if [ -z "$Pass" ]; then
-echo -e "$COLOR1 ${NC}  [Error] Password cannot be empty "
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_line "[Error] Password cannot be empty "
+ui_card_end
 echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ssh
 return
 fi
 IFS= read -r -p "   Expired (hari): " masaaktif
 if ! [[ "$masaaktif" =~ ^[1-9][0-9]*$ ]]; then
-echo -e "$COLOR1 ${NC}  [Error] Expired days must be a positive number "
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_line "[Error] Expired days must be a positive number "
+ui_card_end
 echo ""
-read -n 1 -s -r -p "  Press any key to back on menu"
+ui_pause
 menu-ssh
 return
 fi
@@ -99,7 +87,7 @@ sleep 1
 clear
 if ! useradd -e "$(date -d "$masaaktif days" +"%Y-%m-%d")" -s /bin/false -M "$Login"; then
 echo -e "$RED [Error] Could not create SSH user $Login${NC}"
-read -n 1 -s -r -p "  Press any key to back on menu"
+ui_pause
 menu-ssh
 return
 fi
@@ -109,62 +97,52 @@ printf '%s\n%s\n' "$Pass" "$Pass" | passwd "$Login" &> /dev/null
 PID=`ps -ef |grep -v grep | grep sshws |awk '{print $2}'`
 
 if [[ ! -z "${PID}" ]]; then
-echo -e "$COLOR1┌──────────────────────────────┐${NC}" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 ${NC}      ${COLBG1}${WH}• SSH PANEL MENU • ${NC}$COLOR1 $NC" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1└──────────────────────────────┘${NC}" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1┌──────────────────────────────┐${NC}" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 ${NC}${WH}Username   ${COLOR1}: ${WH}$Login"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 ${NC}${WH}Password   ${COLOR1}: ${WH}$Pass" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 ${NC}${WH}Expired On ${COLOR1}: ${WH}$exp"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1└──────────────────────────────┘${NC}" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1┌──────────────────────────────┐${NC}" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 ${NC}${WH}IP         ${COLOR1}: ${WH}$IP"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 ${NC}${WH}Host       ${COLOR1}: ${WH}$domen"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 ${NC}${WH}OpenSSH    ${COLOR1}: ${WH}$opensh" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 ${NC}${WH}Dropbear   ${COLOR1}: ${WH}$db"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 ${NC}${WH}SSH-WS     ${COLOR1}: ${WH}$portsshws"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 ${NC}${WH}SSH-SSL-WS ${COLOR1}: ${WH}$wsssl"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 ${NC}${WH}SSL/TLS    ${COLOR1}:${WH}$ssl"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 ${NC}${WH}UDPGW      ${COLOR1}: ${WH}7100-7300"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1└──────────────────────────────┘${NC}" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1┌──────────────────────────────┐${NC}" | tee -a /etc/log-create-user.log
+ui_title "SSH PANEL MENU" | tee -a /etc/log-create-user.log
+ui_card_start | tee -a /etc/log-create-user.log
+ui_kv "Username" "$Login"  | tee -a /etc/log-create-user.log
+ui_kv "Password" "$Pass" | tee -a /etc/log-create-user.log
+ui_kv "Expired On" "$exp"  | tee -a /etc/log-create-user.log
+ui_card_end | tee -a /etc/log-create-user.log
+ui_card_start | tee -a /etc/log-create-user.log
+ui_kv "IP" "$IP"  | tee -a /etc/log-create-user.log
+ui_kv "Host" "$domen"  | tee -a /etc/log-create-user.log
+ui_kv "OpenSSH" "$opensh" | tee -a /etc/log-create-user.log
+ui_kv "Dropbear" "$db"  | tee -a /etc/log-create-user.log
+ui_kv "SSH-WS" "$portsshws"  | tee -a /etc/log-create-user.log
+ui_kv "SSH-SSL-WS" "$wsssl"  | tee -a /etc/log-create-user.log
+ui_kv "SSL/TLS" "$ssl"  | tee -a /etc/log-create-user.log
+ui_kv "UDPGW" "7100-7300"  | tee -a /etc/log-create-user.log
+ui_card_end | tee -a /etc/log-create-user.log
+ui_card_start | tee -a /etc/log-create-user.log
 echo -e "${WH}GET http://bug.com HTTP/1.1${NC}" | tee -a /etc/log-create-user.log
 echo -e "${WH}Host: $domen ${NC}" | tee -a /etc/log-create-user.log
 echo -e "${WH}Upgrade: websocket[crlf][crlf]${NC}" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1└──────────────────────────────┘${NC}"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1┌──────────────────────────────┐${NC}" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 ${NC}        ${WH}•  KatsuTun  •${NC}   $COLOR1 $NC" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1└──────────────────────────────┘${NC}" | tee -a /etc/log-create-user.log
+ui_card_end  | tee -a /etc/log-create-user.log
 else
-echo -e "$COLOR1┌──────────────────────────────┐${NC}" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 ${NC}      ${COLBG1}${WH}• SSH PANEL MENU •${NC} $COLOR1 $NC" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1└──────────────────────────────┘${NC}" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1┌──────────────────────────────┐${NC}" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 $NC${WH}Username   ${COLOR1}: ${WH}$Login"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 $NC${WH}Password   ${COLOR1}: ${WH}$Pass" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 $NC${WH}Expired On ${COLOR1}: ${WH}$exp"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1└──────────────────────────────┘${NC}" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1┌──────────────────────────────┐${NC}" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 $NC${WH}IP         ${COLOR1}: ${WH}$IP"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 $NC${WH}Host       ${COLOR1}: ${WH}$domen"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 $NC${WH}OpenSSH    ${COLOR1}: ${WH}$opensh" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 $NC${WH}Dropbear   ${COLOR1}: ${WH}$db"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 $NC${WH}SSH-WS     ${COLOR1}: ${WH}$portsshws"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 $NC${WH}SSH-SSL-WS ${COLOR1}: ${WH}$wsssl"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 $NC${WH}SSL/TLS    ${COLOR1}:${WH}$ssl"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 $NC${WH}UDPGW      ${COLOR1}: ${WH}7100-7300"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1└──────────────────────────────┘${NC}" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1┌──────────────────────────────┐${NC}" | tee -a /etc/log-create-user.log
+ui_title "SSH PANEL MENU" | tee -a /etc/log-create-user.log
+ui_card_start | tee -a /etc/log-create-user.log
+ui_kv "Username" "$Login"  | tee -a /etc/log-create-user.log
+ui_kv "Password" "$Pass" | tee -a /etc/log-create-user.log
+ui_kv "Expired On" "$exp"  | tee -a /etc/log-create-user.log
+ui_card_end | tee -a /etc/log-create-user.log
+ui_card_start | tee -a /etc/log-create-user.log
+ui_kv "IP" "$IP"  | tee -a /etc/log-create-user.log
+ui_kv "Host" "$domen"  | tee -a /etc/log-create-user.log
+ui_kv "OpenSSH" "$opensh" | tee -a /etc/log-create-user.log
+ui_kv "Dropbear" "$db"  | tee -a /etc/log-create-user.log
+ui_kv "SSH-WS" "$portsshws"  | tee -a /etc/log-create-user.log
+ui_kv "SSH-SSL-WS" "$wsssl"  | tee -a /etc/log-create-user.log
+ui_kv "SSL/TLS" "$ssl"  | tee -a /etc/log-create-user.log
+ui_kv "UDPGW" "7100-7300"  | tee -a /etc/log-create-user.log
+ui_card_end | tee -a /etc/log-create-user.log
+ui_card_start | tee -a /etc/log-create-user.log
 echo -e "${WH}GET http://bug.com HTTP/1.1${NC}" | tee -a /etc/log-create-user.log
 echo -e "${WH}Host: $domen ${NC}" | tee -a /etc/log-create-user.log
 echo -e "${WH}Upgrade: websocket[crlf][crlf]${NC}" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1└──────────────────────────────┘${NC}"  | tee -a /etc/log-create-user.log
-echo -e "$COLOR1┌──────────────────────────────┐${NC}" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1 ${NC}        ${WH}•  KatsuTun  •${NC}   $COLOR1 $NC" | tee -a /etc/log-create-user.log
-echo -e "$COLOR1└──────────────────────────────┘${NC}" | tee -a /etc/log-create-user.log
+ui_card_end  | tee -a /etc/log-create-user.log
 fi
 echo -e ""
-read -n 1 -s -r -p "  Press any key to back on menu"
+ui_pause
 menu-ssh
 }
 function sshwss(){
@@ -195,83 +173,65 @@ fi
 
 function start() {
         clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• WEBSOCKET MENU •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}" 
+ui_screen "SSH WEBSOCKET" "enable or disable the WS proxy"
+ui_card_start
 wget -q -O /usr/bin/ssh-wsenabler "$RAW/data/sshws-true.sh" && chmod +x /usr/bin/ssh-wsenabler
 systemctl daemon-reload >/dev/null 2>&1
 systemctl enable sshws.service >/dev/null 2>&1
 systemctl start sshws.service >/dev/null 2>&1
 sed -i "/SSH Websocket/c\   - SSH Websocket           : $portsshws [ON]" /root/log-install.txt
-echo -e "$COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}]${NC} ${COLOR1}•${NC} ${green}SSH Websocket Started${NC}"
-echo -e "$COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}]${NC} ${COLOR1}•${NC} ${WH}Restart is require for Changes"
-echo -e "$COLOR1 ${NC}           to take effect"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_line "${WH}[${COLOR1}INFO${WH}]${NC} ${COLOR1}•${NC} ${green}SSH Websocket Started${NC}"
+ui_line "${WH}[${COLOR1}INFO${WH}]${NC} ${COLOR1}•${NC} ${WH}Restart is require for Changes"
+ui_line "       to take effect"
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "  Press any key to back on menu"
-sshwss 
+ui_pause
+sshwss
 }
 
 function stop() {
         clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• WEBSOCKET MENU •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}" 
+ui_screen "SSH WEBSOCKET" "enable or disable the WS proxy"
+ui_card_start
 systemctl stop sshws.service >/dev/null 2>&1
 tmux kill-session -t sshws >/dev/null 2>&1
 sed -i "/SSH Websocket/c\   - SSH Websocket           : $portsshws [OFF]" /root/log-install.txt
-echo -e "$COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}] ${COLOR1}•${NC} ${red}SSH Websocket Stopped${NC}"
-echo -e "$COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}] ${COLOR1}•${NC} ${WH}Restart is require for Changes"
-echo -e "$COLOR1 ${NC}           to take effect"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_line "${WH}[${COLOR1}INFO${WH}] ${COLOR1}•${NC} ${red}SSH Websocket Stopped${NC}"
+ui_line "${WH}[${COLOR1}INFO${WH}] ${COLOR1}•${NC} ${WH}Restart is require for Changes"
+ui_line "       to take effect"
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "  Press any key to back on menu"
-sshwss 
+ui_pause
+sshwss
 }
 
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• WEBSOCKET MENU •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_screen "SSH WEBSOCKET" "enable or disable the WS proxy"
+ui_card_start
 PID=`ps -ef |grep -v grep | grep sshws |awk '{print $2}'`
 if [[ ! -z "${PID}" ]]; then
-echo -e "$COLOR1 $NC   ${COLOR1}• ${WH}Websocket Is ${COLOR1}${WH}Running${NC}"
+ui_kv "WebSocket" "$(ui_badge active)"
 else
-echo -e "$COLOR1 $NC   ${COLOR1}• ${WH}Websocket Is ${red}${WH}Not Running${NC}"
+ui_kv "WebSocket" "$(ui_badge inactive)"
 fi
-echo -e "$COLOR1 $NC"  
-echo -e "$COLOR1 $NC   ${WH}[${COLOR1}01${WH}]${NC} ${COLOR1}• ${WH}Enable SSH WS   ${WH}[02${WH}]${NC} ${COLOR1}• ${WH}Disable SSH WS${NC}"
-echo -e "$COLOR1 $NC"  
-echo -e "$COLOR1 $NC   ${WH}[${COLOR1}00${WH}]${NC} ${COLOR1}• ${WH}GO BACK${NC}"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo ""
-echo -ne " ${WH}Select menu ${COLOR1}: ${WH}"; read opt
+ui_blank
+ui_options "01:Enable SSH WebSocket" "02:Disable SSH WebSocket"
+ui_card_end
+ui_back_hint
+ui_prompt
+read -r opt
 case $opt in
 01 | 1) clear ; start ;;
 02 | 2) clear ; stop ;;
-00 | 0) clear ; menu ;;
+00 | 0 | x | X) clear ; menu ;;
 *) clear ; menu-set ;;
 esac
 }
 function cekssh(){
 
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}              ${WH}• SSH ACTIVE USERS •             ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "SSH ACTIVE USERS"
+ui_card_start
 echo -e ""
 
 if [ -e "/var/log/auth.log" ]; then
@@ -280,7 +240,7 @@ fi
 if [ -e "/var/log/secure" ]; then
         LOG="/var/log/secure";
 fi
-               
+
 data=( `ps aux | grep -i dropbear | awk '{print $2}'`);
 cat $LOG | grep -i dropbear | grep -i "Password auth succeeded" > /tmp/login-db.txt;
 for PID in "${data[@]}"
@@ -329,21 +289,16 @@ rm -f /tmp/login-db-pid.txt
 rm -f /tmp/login-db.txt
 rm -f /tmp/vpn-login-tcp.txt
 rm -f /tmp/vpn-login-udp.txt
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_card_end
 echo "";
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ssh
 }
 
 function delssh(){
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}              ${WH}• SSH DELETE USERS •             ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "SSH DELETE USERS"
+ui_card_start
 read -p "   Username : " Pengguna
 
 if [ -z $Pengguna ]; then
@@ -357,44 +312,35 @@ else
 echo -e "   ${WH}[${COLOR1}INFO${WH}]${NC} ${WH}Failure${COLOR1}: ${WH}User ${COLOR1}$Pengguna ${WH}Not Exist.${NC}"
 fi
 fi
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ssh
 }
 
 function renewssh(){
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}             ${WH}• RENEW SSH ACCOUNT •              $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_card_start
+ui_line "${COLBG1}             ${WH}• RENEW SSH ACCOUNT •              $COLOR1 $NC"
+ui_card_end
+ui_card_start
 read -p "   Username : " User
 
 if getent passwd $User > /dev/null 2>&1; then
 ok="ok"
 else
-echo -e "$COLOR1 ${NC}   [INFO] Failure: User $User Not Exist."
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_line "[INFO] Failure: User $User Not Exist."
+ui_card_end
 echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu
 fi
 
 if [ -z $User ]; then
-echo -e "$COLOR1 ${NC}   [Error] Username cannot be empty "
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_line "[Error] Username cannot be empty "
+ui_card_end
 echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu
 fi
 
@@ -414,44 +360,32 @@ usermod -e  $Expiration $User
 egrep "^$User" /etc/passwd >/dev/null
 echo -e "$Pass\n$Pass\n"|passwd $User &> /dev/null
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}             ${WH}• RENEW SSH ACCOUNT •             ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "RENEW SSH ACCOUNT"
+ui_card_start
 echo -e "   ${WH}Username   ${COLOR1}: ${WH}$User"
 echo -e "   ${WH}Days Added ${COLOR1}: ${WH}$Days Days"
 echo -e "   ${WH}Expires on ${COLOR1}: ${WH}$Expiration_Display"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_card_end
 else
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}             ${WH}• RENEW SSH ACCOUNT •             ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "RENEW SSH ACCOUNT"
+ui_card_start
 echo -e "   Username Doesnt Exist      "
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_card_end
 fi
 echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ssh
 }
 
 
 function memberssh(){
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}             ${WH}• RENEW SSH ACCOUNT •             ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"    
+ui_title "RENEW SSH ACCOUNT"
+ui_card_start
 echo "   USERNAME          EXP DATE          STATUS"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"  
+ui_card_end
+ui_card_start
 while read expired
 do
 AKUN="$(echo $expired | cut -d: -f1)"
@@ -467,15 +401,12 @@ fi
 fi
 done < /etc/passwd
 JUMLAH="$(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1}' /etc/passwd | wc -l)"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"  
+ui_card_end
+ui_card_start
 echo "   Total: $JUMLAH User"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_card_end
 echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ssh
 }
 
@@ -508,79 +439,58 @@ echo -e "$Pass\n$Pass\n"|passwd $Login &> /dev/null
 PID=`ps -ef |grep -v grep | grep sshws |awk '{print $2}'`
 
 if [[ ! -z "${PID}" ]]; then
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}            ${WH}• SSH TRIAL ACCOUNT •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 $NC  ${WH}Username   ${COLOR1}: ${WH}$Login" 
-echo -e "$COLOR1 $NC  ${WH}Password   ${COLOR1}: ${WH}$Pass"
-echo -e "$COLOR1 $NC  ${WH}Expired On ${COLOR1}: ${WH}$exp" 
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 $NC  ${WH}IP         ${COLOR1}: ${WH}$IP" 
-echo -e "$COLOR1 $NC  ${WH}Host       ${COLOR1}: ${WH}$domen" 
-echo -e "$COLOR1 $NC  ${WH}OpenSSH    ${COLOR1}: ${WH}$opensh"
-echo -e "$COLOR1 $NC  ${WH}Dropbear   ${COLOR1}: ${WH}$db" 
-echo -e "$COLOR1 $NC  ${WH}SSH-WS     ${COLOR1}: ${WH}$portsshws" 
-echo -e "$COLOR1 $NC  ${WH}SSH-SSL-WS ${COLOR1}: ${WH}$wsssl" 
-echo -e "$COLOR1 $NC  ${WH}SSL/TLS    ${COLOR1}:${WH}$ssl" 
-echo -e "$COLOR1 $NC  ${WH}UDPGW      ${COLOR1}: ${WH}7100-7300" 
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "SSH TRIAL ACCOUNT"
+ui_card_start
+ui_line "${WH}Username   ${COLOR1}: ${WH}$Login"
+ui_line "${WH}Password   ${COLOR1}: ${WH}$Pass"
+ui_line "${WH}Expired On ${COLOR1}: ${WH}$exp"
+ui_card_end
+ui_card_start
+ui_line "${WH}IP         ${COLOR1}: ${WH}$IP"
+ui_line "${WH}Host       ${COLOR1}: ${WH}$domen"
+ui_line "${WH}OpenSSH    ${COLOR1}: ${WH}$opensh"
+ui_line "${WH}Dropbear   ${COLOR1}: ${WH}$db"
+ui_line "${WH}SSH-WS     ${COLOR1}: ${WH}$portsshws"
+ui_line "${WH}SSH-SSL-WS ${COLOR1}: ${WH}$wsssl"
+ui_line "${WH}SSL/TLS    ${COLOR1}:${WH}$ssl"
+ui_line "${WH}UDPGW      ${COLOR1}: ${WH}7100-7300"
+ui_card_end
+ui_card_start
 echo -e "  ${WH}GET http://bug.com HTTP/1.1[crlf]Host: $domen [crlf]User-Agent: [ua][crlf]Upgrade: websocket[crlf][crlf]Connection: Keep-Alive[crlf][crlf]${NC}"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-
+ui_card_end
 else
 
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}            ${WH}• SSH TRIAL ACCOUNT •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 $NC  ${WH}Username   ${COLOR1}: ${WH}$Login" 
-echo -e "$COLOR1 $NC  ${WH}Password   ${COLOR1}: ${WH}$Pass"
-echo -e "$COLOR1 $NC  ${WH}Expired On ${COLOR1}: ${WH}$exp" 
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 $NC  ${WH}IP         ${COLOR1}: ${WH}$IP" 
-echo -e "$COLOR1 $NC  ${WH}Host       ${COLOR1}: ${WH}$domen" 
-echo -e "$COLOR1 $NC  ${WH}OpenSSH    ${COLOR1}: ${WH}$opensh"
-echo -e "$COLOR1 $NC  ${WH}Dropbear   ${COLOR1}: ${WH}$db" 
-echo -e "$COLOR1 $NC  ${WH}SSH-WS     ${COLOR1}: ${WH}$portsshws" 
-echo -e "$COLOR1 $NC  ${WH}SSH-SSL-WS ${COLOR1}: ${WH}$wsssl" 
-echo -e "$COLOR1 $NC  ${WH}SSL/TLS    ${COLOR1}:${WH}$ssl" 
-echo -e "$COLOR1 $NC  ${WH}UDPGW      ${COLOR1}: ${WH}7100-7300" 
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}  ${WH}GET http://bug.com HTTP/1.1[crlf]Host: $domen [crlf]User-Agent: [ua][crlf]Upgrade: websocket[crlf][crlf]Connection: Keep-Alive[crlf][crlf]${NC}"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_title "SSH TRIAL ACCOUNT"
+ui_card_start
+ui_line "${WH}Username   ${COLOR1}: ${WH}$Login"
+ui_line "${WH}Password   ${COLOR1}: ${WH}$Pass"
+ui_line "${WH}Expired On ${COLOR1}: ${WH}$exp"
+ui_card_end
+ui_card_start
+ui_line "${WH}IP         ${COLOR1}: ${WH}$IP"
+ui_line "${WH}Host       ${COLOR1}: ${WH}$domen"
+ui_line "${WH}OpenSSH    ${COLOR1}: ${WH}$opensh"
+ui_line "${WH}Dropbear   ${COLOR1}: ${WH}$db"
+ui_line "${WH}SSH-WS     ${COLOR1}: ${WH}$portsshws"
+ui_line "${WH}SSH-SSL-WS ${COLOR1}: ${WH}$wsssl"
+ui_line "${WH}SSL/TLS    ${COLOR1}:${WH}$ssl"
+ui_line "${WH}UDPGW      ${COLOR1}: ${WH}7100-7300"
+ui_card_end
+ui_card_start
+ui_line "${WH}GET http://bug.com HTTP/1.1[crlf]Host: $domen [crlf]User-Agent: [ua][crlf]Upgrade: websocket[crlf][crlf]Connection: Keep-Alive[crlf][crlf]${NC}"
+ui_card_end
 fi
 echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ssh
 }
-clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• SSH PANEL MENU •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e " $COLOR1┌───────────────────────────────────────────────┐${NC}
- $COLOR1 $NC   ${WH}[${COLOR1}01${WH}]${NC} ${COLOR1}• ${WH}ADD SSH         ${WH}[${COLOR1}05${WH}]${NC} ${COLOR1}• ${WH}DELETE SSH${NC}    $COLOR1 $NC
- $COLOR1 $NC   ${WH}[${COLOR1}02${WH}]${NC} ${COLOR1}• ${WH}TRIAL SSH       ${WH}[${COLOR1}06${WH}]${NC} ${COLOR1}• ${WH}RENEW SSH${NC}     $COLOR1 $NC
- $COLOR1 $NC   ${WH}[${COLOR1}03${WH}]${NC} ${COLOR1}• ${WH}USER ONLINE     ${WH}[${COLOR1}07${WH}]${NC} ${COLOR1}• ${WH}USERS LIST${NC}    $COLOR1 $NC
- $COLOR1 $NC   ${WH}[${COLOR1}04${WH}]${NC} ${COLOR1}• ${WH}ENABLE WS                            $COLOR1 $NC
- $COLOR1 $NC                                              ${NC} $COLOR1 $NC
- $COLOR1 $NC   ${WH}[${COLOR1}00${WH}]${NC} ${COLOR1}• ${WH}GO BACK${NC}                              $COLOR1 $NC"
-echo -e " $COLOR1└───────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e ""
-echo -ne " ${WH}Select menu ${COLOR1}: ${WH}"; read opt
+ui_screen "SSH & OPENVPN" "accounts, trials, online users"
+ui_card_start
+ui_options "01:Add account" "05:Delete account" "02:Trial account" "06:Renew account" "03:Online users" "07:Account list" "04:Enable WebSocket" ""
+ui_card_end
+ui_back_hint
+ui_prompt
+read -r opt
 case $opt in
 01 | 1) clear ; addssh ;;
 02 | 2) clear ; trialssh ;;
@@ -589,6 +499,6 @@ case $opt in
 05 | 5) clear ; delssh ;;
 06 | 6) clear ; renewssh ;;
 07 | 7) clear ; memberssh ;;
-00 | 0) clear ; menu ;;
+00 | 0 | x | X) clear ; menu ;;
 *) clear ; menu-ssh ;;
 esac

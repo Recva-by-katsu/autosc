@@ -8,6 +8,7 @@ UI_LIB=/usr/local/lib/katsutun/ui.sh
 # shellcheck source=data/katsu-ui.sh
 . "$UI_LIB"
 ui_init
+red="$UI_BAD"; green="$UI_GOOD"; yell="$UI_WARN"; tyblue="$UI_ACCENT"
 ui_clear
 
 ui_header "APPEARANCE" "PERSONALIZE YOUR PANEL"
@@ -37,6 +38,7 @@ esac
 
 printf '%s\n' "$selected" > /etc/yudhynetwork/theme/color.conf
 ui_init
+red="$UI_BAD"; green="$UI_GOOD"; yell="$UI_WARN"; tyblue="$UI_ACCENT"
 ui_clear
 ui_header "THEME UPDATED" "APPEARANCE"
 ui_card_start

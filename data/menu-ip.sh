@@ -1,11 +1,15 @@
 #!/bin/bash
 MYIP=$(wget -qO- ipinfo.io/ip);
 
-colornow=$(cat /etc/yudhynetwork/theme/color.conf)
-NC="\e[0m"
-COLOR1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "TEXT" | cut -d: -f2|sed 's/ //g')"
-COLBG1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "BG" | cut -d: -f2|sed 's/ //g')"
-WH='\033[1;37m'
+UI_LIB=/usr/local/lib/katsutun/ui.sh
+[ -r "$UI_LIB" ] || { echo "KatsuTun UI library is missing. Run: katsu-update apply --force"; exit 1; }
+# shellcheck source=data/katsu-ui.sh
+. "$UI_LIB"
+ui_init
+red="$UI_BAD"; green="$UI_GOOD"; yell="$UI_WARN"; tyblue="$UI_ACCENT"
+# Legacy palette names used by the screens below now map onto the shared theme.
+NC="$UI_RESET"; RED="$UI_BAD"; GREEN="$UI_GOOD"; YELLOW="$UI_WARN"
+COLOR1="$UI_ACCENT"; COLBG1="$UI_BAR"; WH="$UI_TEXT"
 
 APIGIT=$(cat /etc/yudhynetwork/github/api)
 EMAILGIT=$(cat /etc/yudhynetwork/github/email)
@@ -14,10 +18,8 @@ USERGIT=$(cat /etc/yudhynetwork/github/username)
 
 function setapi(){
     clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}              ${WH}• IPVPS GITHUB API •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "IPVPS GITHUB API"
+ui_card_start
 
 if [[ -f /etc/yudhynetwork/github/api && -f /etc/yudhynetwork/github/email && /etc/yudhynetwork/github/username ]]; then
    rec="OK"
@@ -27,37 +29,28 @@ fi
 
 read -p " E-mail   : " EMAIL1
 if [ -z $EMAIL1 ]; then
-echo -e "$COLOR1 ${NC}   [INFO] Please Input Your Github Email Adress"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_line "[INFO] Please Input Your Github Email Adress"
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ip
 fi
 
 read -p " Username : " USERNAME1
 if [ -z $USERNAME1 ]; then
-echo -e "$COLOR1 ${NC}   [INFO] Please Input Your Github Username"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_line "[INFO] Please Input Your Github Username"
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ip
 fi
 
 read -p " API      : " API1
 if [ -z $API1 ]; then
-echo -e "$COLOR1 ${NC}  [INFO] Please Input Your Github API"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_line "[INFO] Please Input Your Github API"
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "  Press any key to back on menu"
+ui_pause
 menu-ip
 fi
 
@@ -67,85 +60,65 @@ echo "$USERNAME1" > /etc/yudhynetwork/github/username
 echo "$API1" > /etc/yudhynetwork/github/api
 echo "ON" > /etc/yudhynetwork/github/gitstat
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• REGISTER IPVPS •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}   [INFO] Github Api Setup Successfully"
-echo -e "$COLOR1 ${NC}"
-echo -e "$COLOR1 ${NC}   • Email : $EMAIL1"
-echo -e "$COLOR1 ${NC}   • User  : $USERNAME1"
-echo -e "$COLOR1 ${NC}   • API   : $API1"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_title "REGISTER IPVPS"
+ui_card_start
+ui_line "[INFO] Github Api Setup Successfully"
+ui_blank
+ui_line "• Email : $EMAIL1"
+ui_line "• User  : $USERNAME1"
+ui_line "• API   : $API1"
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ip
 }
 
 function viewapi(){
     clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}             ${WH}• LIST REGISTER IP •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}  • Email : $EMAILGIT"
-echo -e "$COLOR1 ${NC}  • User  : $USERGIT"
-echo -e "$COLOR1 ${NC}  • API   : $APIGIT"
-echo -e "$COLOR1 ${NC}  • All U need Is Create a new repository "
-echo -e "$COLOR1 ${NC}    & Nammed : permission "
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_title "LIST REGISTER IP"
+ui_card_start
+ui_line "• Email : $EMAILGIT"
+ui_line "• User  : $USERGIT"
+ui_line "• API   : $APIGIT"
+ui_line "• All U need Is Create a new repository "
+ui_line "& Nammed : permission "
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ip
 }
 
 function add_ip(){
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• REGISTER IPVPS •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "REGISTER IPVPS"
+ui_card_start
 rm -rf /root/permission
 read -p "   NEW IPVPS : " daftar
-echo -e "$COLOR1 ${NC}"
-echo -e "$COLOR1 ${NC}  [INFO] Checking the IPVPS!"
+ui_blank
+ui_line "[INFO] Checking the IPVPS!"
 sleep 1
 REQIP=$(curl -sS https://raw.githubusercontent.com/${USERGIT}/permission/main/ipmini | awk '{print $4}' | grep $daftar)
 if [[ $daftar = $REQIP ]]; then
-echo -e "$COLOR1 ${NC}  [INFO] VPS IP Already Registered!!"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_line "[INFO] VPS IP Already Registered!!"
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ip
 else
-echo -e "$COLOR1 ${NC}  [INFO] OK! IP VPS is not Registered!"
-echo -e "$COLOR1 ${NC}  [INFO] Lets Regester it!"
+ui_line "[INFO] OK! IP VPS is not Registered!"
+ui_line "[INFO] Lets Regester it!"
 sleep 3
 clear
 fi
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• REGISTER IPVPS •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "REGISTER IPVPS"
+ui_card_start
 read -p "   User Name  : " client
 if [ -z $client ]; then
 cd
-echo -e "$COLOR1 ${NC}  [INFO] Please Input client"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_line "[INFO] Please Input client"
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ip
 fi
 
@@ -153,13 +126,10 @@ fi
 read -p "   EXP Date   : " exp
 if [ -z $exp ]; then
 cd
-echo -e "$COLOR1 ${NC}   [INFO] Please Input exp date"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_line "[INFO] Please Input exp date"
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ip
 fi
 
@@ -169,12 +139,12 @@ satu="ON"
 dua="OFF"
 while true $x != "ok"
 do
-echo -e "$COLOR1 ${NC}"
-echo -e "$COLOR1 ${NC}  ${COLOR1}[01]${NC} • ADMIN   ${COLOR1}[02]${NC} • NORMAL"
-echo -e "$COLOR1 ${NC}"
+ui_blank
+ui_line "${COLOR1}[01]${NC} • ADMIN   ${COLOR1}[02]${NC} • NORMAL"
+ui_blank
 echo -ne "   Input your choice : "; read list
 echo ""
-case "$list" in 
+case "$list" in
    1) isadmin="$satu";break;;
    2) isadmin="$dua";break;;
 esac
@@ -192,14 +162,14 @@ git init &> /dev/null
 touch ipmini &> /dev/null
 touch newuser &> /dev/null
 TEXT="
-Name        : $client 
+Name        : $client
 Admin Panel : $isadmin
-Exp         : $exp 
-IPVPS       : $daftar 
+Exp         : $exp
+IPVPS       : $daftar
 Reg Date    : $hariini
-" 
-echo "${TEXT}" >>/root/permission/newuser 
-echo "### $client $exp $daftar $isadmin" >>/root/permission/ipmini 
+"
+echo "${TEXT}" >>/root/permission/newuser
+echo "### $client $exp $daftar $isadmin" >>/root/permission/ipmini
 git add .
 git commit -m register &> /dev/null
 git branch -M main &> /dev/null
@@ -207,25 +177,20 @@ git remote add origin https://github.com/${USERGIT}/permission.git &> /dev/null
 git push -f https://${APIGIT}@github.com/${USERGIT}/permission.git &> /dev/null
 sleep 1
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• REGISTER IPVPS •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}  Client IP Regested Successfully"
-echo -e "$COLOR1 ${NC}"
-echo -e "$COLOR1 ${NC}  Client Name   : $client"
-echo -e "$COLOR1 ${NC}  Admin Panel   : $isadmin"
-echo -e "$COLOR1 ${NC}  IP VPS        : $daftar"
-echo -e "$COLOR1 ${NC}  Register Date : $hariini"
-echo -e "$COLOR1 ${NC}  Expired Date  : $exp"
+ui_title "REGISTER IPVPS"
+ui_card_start
+ui_line "Client IP Regested Successfully"
+ui_blank
+ui_line "Client Name   : $client"
+ui_line "Admin Panel   : $isadmin"
+ui_line "IP VPS        : $daftar"
+ui_line "Register Date : $hariini"
+ui_line "Expired Date  : $exp"
 cd
 rm -rf /root/permission
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_card_end
 echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ip
 }
 function delipvps(){
@@ -239,30 +204,20 @@ rm -rf .git &> /dev/null
 git init &> /dev/null
 touch ipmini &> /dev/null
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}                 ${WH}• DELETE IPVPS •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "DELETE IPVPS"
+ui_card_start
 grep -E "^### " "/root/permission/ipmini" | cut -d ' ' -f 2-4 | nl -s '. '
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_card_end
 echo ""
 read -rp "   Please Input Number : " nombor
 if [ -z $nombor ]; then
 cd
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}                 ${WH}• DELETE IPVPS •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1 ${NC}   [INFO] Please Input Correct Number"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_title "DELETE IPVPS"
+ui_line "[INFO] Please Input Correct Number"
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ip
 fi
 
@@ -273,9 +228,9 @@ sed -i "s/### $name1 $exp $ivps1//g" /root/permission/ipmini &> /dev/null
 hariini2=$(date -d "0 days" +"%Y-%m-%d")
 TEXTD="
 Name     : $name1
-IPVPS    : $ivps1  
+IPVPS    : $ivps1
 Status   : Deleted on  $hariini2
-" 
+"
 echo "${TEXTD}" >>/root/permission/delete_log  &> /dev/null
 
 git add . &> /dev/null
@@ -284,32 +239,25 @@ git branch -M main &> /dev/null
 git remote add origin https://github.com/${USERGIT}/permission.git &> /dev/null
 git push -f https://${APIGIT}@github.com/${USERGIT}/permission.git &> /dev/null
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• REGISTER IPVPS •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}  Client IP Deleted Successfully"
-echo -e "$COLOR1 ${NC}"
-echo -e "$COLOR1 ${NC}  Ip VPS       : $ivps1"
-echo -e "$COLOR1 ${NC}  Expired Date : $exp"
-echo -e "$COLOR1 ${NC}  Client Name  : $name1"
+ui_title "REGISTER IPVPS"
+ui_card_start
+ui_line "Client IP Deleted Successfully"
+ui_blank
+ui_line "Ip VPS       : $ivps1"
+ui_line "Expired Date : $exp"
+ui_line "Client Name  : $name1"
 cd
 rm -rf /root/permission
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_card_end
 echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ip
 }
 
 function renewipvps(){
  clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• REGISTER IPVPS •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "REGISTER IPVPS"
+ui_card_start
 rm -rf /root/permission
 git config --global user.email "${EMAILGIT}" &> /dev/null
 git config --global user.name "${USERGIT}" &> /dev/null
@@ -323,29 +271,19 @@ echo -e "   [ ${Lyellow}INFO${NC} ] Checking list.."
 NUMBER_OF_CLIENTS=$(grep -c -E "^### " "/root/permission/ipmini")
 if [[ ${NUMBER_OF_CLIENTS} == '0' ]]; then
   clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• REGISTER IPVPS •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}   [INFO] You have no existing clients!"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_title "REGISTER IPVPS"
+ui_card_start
+ui_line "[INFO] You have no existing clients!"
+ui_card_end
 echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ip
 fi
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• REGISTER IPVPS •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "REGISTER IPVPS"
+ui_card_start
 grep -E "^### " "/root/permission/ipmini" | cut -d ' ' -f 2-4 | nl -s '. '
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_card_end
 echo -e ""
 until [[ ${CLIENT_NUMBER} -ge 1 && ${CLIENT_NUMBER} -le ${NUMBER_OF_CLIENTS} ]]; do
   if [[ ${CLIENT_NUMBER} == '1' ]]; then
@@ -356,17 +294,12 @@ until [[ ${CLIENT_NUMBER} -ge 1 && ${CLIENT_NUMBER} -le ${NUMBER_OF_CLIENTS} ]];
 if [ -z $CLIENT_NUMBER ]; then
 cd
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• REGISTER IPVPS •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}   [INFO] Please Input Correct Number"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_title "REGISTER IPVPS"
+ui_card_start
+ui_line "[INFO] Please Input Correct Number"
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ip
 fi
 done
@@ -375,17 +308,12 @@ read -p " Expired (days): " masaaktif
 if [ -z $masaaktif ]; then
 cd
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• REGISTER IPVPS •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}  [INFO] Please Input Correct Number"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_title "REGISTER IPVPS"
+ui_card_start
+ui_line "[INFO] Please Input Correct Number"
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ip
 fi
 name1=$(grep -E "^### " "/root/permission/ipmini" | cut -d ' ' -f 2 | sed -n "${CLIENT_NUMBER}"p) #name
@@ -405,25 +333,20 @@ git branch -M main
 git remote add origin https://github.com/${USERGIT}/permission.git
 git push -f https://${APIGIT}@github.com/${USERGIT}/permission.git
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• REGISTER IPVPS •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}  Client IP VPS Renew Successfully"
-echo -e "$COLOR1 ${NC}"
-echo -e "$COLOR1 ${NC}  Ip VPS        : $ivps1"
-echo -e "$COLOR1 ${NC}  Renew Date    : $now"
-echo -e "$COLOR1 ${NC}  Days Added    : $masaaktif Days"
-echo -e "$COLOR1 ${NC}  Expired Date  : $exp4"
-echo -e "$COLOR1 ${NC}  Client Name   : $name1"
+ui_title "REGISTER IPVPS"
+ui_card_start
+ui_line "Client IP VPS Renew Successfully"
+ui_blank
+ui_line "Ip VPS        : $ivps1"
+ui_line "Renew Date    : $now"
+ui_line "Days Added    : $masaaktif Days"
+ui_line "Expired Date  : $exp4"
+ui_line "Client Name   : $name1"
 cd
 rm -rf /root/permission
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_card_end
 echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ip
 }
 
@@ -438,19 +361,14 @@ rm -rf .git
 git init
 touch ipmini
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• REGISTER IPVPS •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "REGISTER IPVPS"
+ui_card_start
 grep -E "^### " "/root/permission/ipmini" | cut -d ' ' -f 2 | nl -s '. '
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_card_end
 cd
 rm -rf /root/permission
 echo -e ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ip
 }
 function resetipvps(){
@@ -460,46 +378,34 @@ rm -f /etc/yudhynetwork/github/username
 rm -f /etc/yudhynetwork/github/api
 rm -f /etc/yudhynetwork/github/gitstat
 echo "OFF" > /etc/yudhynetwork/github/gitstat
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}              ${WH}• RESET GITHUB API •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}  [INFO] Github API Reseted Successfully"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_title "RESET GITHUB API"
+ui_card_start
+ui_line "[INFO] Github API Reseted Successfully"
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "   Press any key to back on menu"
-menu-ip  
+ui_pause
+menu-ip
 }
 Isadmin=$(curl -sS https://raw.githubusercontent.com/kenDevXD/permission/main/ipmini | grep $MYIP | awk '{print $5}')
 if [ "$Isadmin" = "OFF" ]; then
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}            ${WH}• PREMIUM USER ONLY •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} [INFO] Only PRO Users Can Use This Panel"
-echo -e "$COLOR1 ${NC} [INFO] Buy Premium Membership : "
-echo -e "$COLOR1 ${NC} [INFO] PM : t.me/zenhost_official/"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_title "PREMIUM USER ONLY"
+ui_card_start
+ui_line "[INFO] Only PRO Users Can Use This Panel"
+ui_line "[INFO] Buy Premium Membership : "
+ui_line "[INFO] PM : t.me/zenhost_official/"
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "   Press any key to back on menu"
-menu-ip  
+ui_pause
+menu-ip
 fi
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• REGISTER IPVPS •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "REGISTER IPVPS"
+ui_card_start
 GITREQ=/etc/yudhynetwork/github/gitstat
 if [ -f "$GITREQ" ]; then
     cekk="ok"
-else 
+else
     mkdir /etc/yudhynetwork/github
     touch /etc/yudhynetwork/github/gitstat
     echo "OFF" > /etc/yudhynetwork/github/gitstat
@@ -508,17 +414,12 @@ fi
 stst1=$(cat /etc/yudhynetwork/github/gitstat)
 if [ "$stst1" = "OFF" ]; then
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• REGISTER IPVPS •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}   • You Need To Set Github API First!"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_title "REGISTER IPVPS"
+ui_card_start
+ui_line "• You Need To Set Github API First!"
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "   Press any key to Set API"
+ui_pause
 setapi
 fi
 stst=$(cat /etc/yudhynetwork/github/gitstat)
@@ -536,18 +437,11 @@ else
 ISON=""
 ressee="menu-ip"
 fi
-echo -e "   $COLOR1 [01]$NC • $APIOK        $COLOR1 [04]$NC • RENEW IPVPS" 
-echo -e "   $COLOR1 [02]$NC • ADD IPVPS      $COLOR1 [05]$NC • LIST IPVPS"
-echo -e "   $COLOR1 [03]$NC • DELETE IPVPS   $COLOR1 [06]$NC • $ISON"
-echo -e "   "
-echo -e "   $COLOR1 [00]$NC • GO BACK"
-
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e ""
-echo -ne " ${WH}Select menu ${COLOR1}: ${WH}"; read opt
+ui_options "01:$APIOK" "04:Renew IP VPS" "02:Add IP VPS" "05:List IP VPS" "03:Delete IP VPS" "06:${ISON:-—}"
+ui_card_end
+ui_back_hint
+ui_prompt
+read -r opt
 case $opt in
 01 | 1) clear ; $rex ;;
 02 | 2) clear ; add_ip ;;
@@ -555,6 +449,6 @@ case $opt in
 04 | 4) clear ; renewipvps ;;
 05 | 5) clear ; useripvps ;;
 06 | 6) clear ; $ressee ;;
-00 | 0) clear ; menu ;;
+00 | 0 | x | X) clear ; menu ;;
 *) clear ; menu-ip ;;
 esac

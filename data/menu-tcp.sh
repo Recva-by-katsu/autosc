@@ -1,13 +1,13 @@
 #!/bin/bash
-dateFromServer=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
-biji=`date +"%Y-%m-%d" -d "$dateFromServer"`
-###########- COLOR CODE -##############
-colornow=$(cat /etc/yudhynetwork/theme/color.conf)
-NC="\e[0m"
-RED="\033[0;31m" 
-COLOR1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "TEXT" | cut -d: -f2|sed 's/ //g')"
-COLBG1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "BG" | cut -d: -f2|sed 's/ //g')"    
-WH='\033[1;37m'                
+UI_LIB=/usr/local/lib/katsutun/ui.sh
+[ -r "$UI_LIB" ] || { echo "KatsuTun UI library is missing. Run: katsu-update apply --force"; exit 1; }
+# shellcheck source=data/katsu-ui.sh
+. "$UI_LIB"
+ui_init
+red="$UI_BAD"; green="$UI_GOOD"; yell="$UI_WARN"; tyblue="$UI_ACCENT"
+# Legacy palette names used by the screens below now map onto the shared theme.
+NC="$UI_RESET"; RED="$UI_BAD"; GREEN="$UI_GOOD"; YELLOW="$UI_WARN"
+COLOR1="$UI_ACCENT"; COLBG1="$UI_BAR"; WH="$UI_TEXT"
 ###########- END COLOR CODE -##########
 
 
@@ -21,18 +21,18 @@ MYIP=$(curl -s https://icanhazip.com)
 clear
 tcp_status() {
   if [[ $(grep -c "^#PH56" /etc/sysctl.conf) -eq 1 ]]; then
-    echo -e "$COLOR1 ${NC}   TCP 1 Current status : ${green}Installed${NC}"
+    ui_line " TCP 1 Current status : ${green}Installed${NC}"
   else
-    echo -e "$COLOR1 ${NC}   TCP 1 Current status : ${red}Not Installed${NC}"
+    ui_line " TCP 1 Current status : ${red}Not Installed${NC}"
   fi
 }
 
 # status tweak
 tcp_2_status() {
   if [[ $(grep -c "^##VpsPack" /etc/sysctl.conf) -eq 1 ]]; then
-    echo -e "$COLOR1 ${NC}   TCP 2 Current status : ${green}Installed${NC}"
+    ui_line " TCP 2 Current status : ${green}Installed${NC}"
   else
-    echo -e "$COLOR1 ${NC}   TCP 2 Current status : ${red}Not Installed${NC}"
+    ui_line " TCP 2 Current status : ${red}Not Installed${NC}"
   fi
 }
 
@@ -40,18 +40,16 @@ tcp_2_status() {
 bbr_status() {
   local param=$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')
   if [[ x"${param}" == x"bbr" ]]; then
-    echo -e "$COLOR1 ${NC}   BBR status : ${green}Installed${NC}"
+    ui_line " BBR status : ${green}Installed${NC}"
   else
-    echo -e "$COLOR1 ${NC}   BBR status : ${red}Not Installed${NC}"
+    ui_line " BBR status : ${red}Not Installed${NC}"
   fi
 }
 
 delete_bbr() {
   clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1  $NC$COLBG1              ${WH}• TCP TWEAK PANEL •              $COLOR1  $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_screen "TCP TWEAK" "congestion control"
+ui_card_start
   read -p "   [INFO] Do you want to remove BBR? [y/n]: " -e answer0
   if [[ "$answer0" = 'y' ]]; then
     grep -v "^#BBR
@@ -59,13 +57,10 @@ net.core.default_qdisc = fq
 net.ipv4.tcp_congestion_control = bbr" /etc/sysctl.conf >/tmp/syscl && mv /tmp/syscl /etc/sysctl.conf
 sysctl -p /etc/sysctl.conf >/dev/null
 echo "cubic" >/proc/sys/net/ipv4/tcp_congestion_control
-echo -e "$COLOR1 $NC   [INFO] BBR settings successfully removed."
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_line "[INFO] BBR settings successfully removed."
+ui_card_end
     echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
     menu-tcp
   else
     echo ""
@@ -108,67 +103,51 @@ check_kernel_version() {
 install_bbr2() {
   check_bbr_status
   if [ $? -eq 0 ]; then
-echo -e "$COLOR1 $NC   [INFO]  TCP BBR already  installed."
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_line "[INFO]  TCP BBR already  installed."
+ui_card_end
     echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
     menu-tcp
   fi
   check_kernel_version
   if [ $? -eq 0 ]; then
-echo -e "$COLOR1 $NC  [INFO]  Your kernel version is greater than 4.9, directly setting TCP BBR..."
+ui_line "[INFO]  Your kernel version is greater than 4.9, directly setting TCP BBR..."
     sysctl_config
-echo -e "$COLOR1 $NC   [INFO]  Setting TCP BBR completed..."
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_line "[INFO]  Setting TCP BBR completed..."
+ui_card_end
     echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
     menu-tcp
   fi
 
   if [[ x"${release}" == x"centos" ]]; then
-echo -e "$COLOR1 $NC   [ERROR] Centos not support"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_line "[ERROR] Centos not support"
+ui_card_end
     echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
     menu-tcp
   fi
 }
 
 install_bbr() {
   clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1  $NC$COLBG1              ${WH}• TCP TWEAK PANEL •${NC}              $COLOR1  $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_screen "TCP TWEAK" "congestion control"
+ui_card_start
   read -p "   [INFO] Proceed with installation? [y/n]: " -e answer
   if [[ "$answer" = 'y' ]]; then
     install_bbr2
   else
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_card_end
     echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
     menu-tcp
   fi
 }
 
 delete_Tweaker() {
   clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1  $NC$COLBG1              ${WH}• TCP TWEAK PANEL •${NC}              $COLOR1  $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_screen "TCP TWEAK" "congestion control"
+ui_card_start
   read -p "   [INFO] Remove TCP Tweaker settings? [y/n]: " -e answer0
   if [[ "$answer0" = 'y' ]]; then
     grep -v "^#PH56
@@ -180,13 +159,10 @@ net.ipv4.tcp_wmem = 4096 16384 16777216
 net.ipv4.tcp_low_latency = 1
 net.ipv4.tcp_slow_start_after_idle = 0" /etc/sysctl.conf >/tmp/syscl && mv /tmp/syscl /etc/sysctl.conf
     sysctl -p /etc/sysctl.conf >/dev/null
-echo -e "$COLOR1 $NC   [INFO] TCP Tweaker settings successfully removed."
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_line "[INFO] TCP Tweaker settings successfully removed."
+ui_card_end
     echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
     menu-tcp
   else
     echo ""
@@ -196,10 +172,8 @@ read -n 1 -s -r -p "   Press any key to back on menu"
 
 install_Tweaker() {
   clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1  $NC$COLBG1              ${WH}• TCP TWEAK PANEL •              $COLOR1  $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_screen "TCP TWEAK" "congestion control"
+ui_card_start
   read -p "   [INFO] Proceed with installation? [y/n]: " -e answer
   if [[ "$answer" = 'y' ]]; then
     echo " " >>/etc/sysctl.conf
@@ -212,25 +186,20 @@ net.ipv4.tcp_wmem = 4096 16384 16777216
 net.ipv4.tcp_low_latency = 1
 net.ipv4.tcp_slow_start_after_idle = 0" >>/etc/sysctl.conf
     sysctl -p /etc/sysctl.conf >/dev/null
-echo -e "$COLOR1 $NC  [INFO] TCP Tweaker settings added successfully."
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_line "[INFO] TCP Tweaker settings added successfully."
+ui_card_end
     echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
     menu-tcp
   else
-echo -e "$COLOR1 $NC Installation was canceled by the user!"
+ui_line "Installation was canceled by the user!"
   fi
 }
 
 delete_Tweaker_2() {
   clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1  $NC$COLBG1              ${WH}• TCP TWEAK PANEL •              $COLOR1  $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_screen "TCP TWEAK" "congestion control"
+ui_card_start
   read -p "   [INFO] Remove TCP Tweaker settings? [y/n]: " -e answer0
   if [[ "$answer0" = 'y' ]]; then
     grep -v "^##VpsPack
@@ -248,13 +217,10 @@ net.ipv4.tcp_max_orphans = 16384
 net.core.somaxconn = 16384
 net.core.netdev_max_backlog = 16384" /etc/sysctl.conf >/tmp/syscl && mv /tmp/syscl /etc/sysctl.conf
     sysctl -p /etc/sysctl.conf >/dev/null
-echo -e "$COLOR1 $NC  TCP Tweaker settings successfully removed."
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_line "TCP Tweaker settings successfully removed."
+ui_card_end
     echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
     menu-tcp
   else
     echo ""
@@ -264,10 +230,8 @@ read -n 1 -s -r -p "   Press any key to back on menu"
 
 install_Tweaker_2() {
   clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1  $NC$COLBG1              ${WH}• TCP TWEAK PANEL •              $COLOR1  $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_screen "TCP TWEAK" "congestion control"
+ui_card_start
   read -p "   [INFO] Proceed with installation? [y/n]: " -e answer
   if [[ "$answer" = 'y' ]]; then
     echo " " >>/etc/sysctl.conf
@@ -286,41 +250,30 @@ net.ipv4.tcp_max_orphans = 16384
 net.core.somaxconn = 16384
 net.core.netdev_max_backlog = 16384" >>/etc/sysctl.conf
     sysctl -p /etc/sysctl.conf >/dev/null
-echo -e "$COLOR1 $NC   [INFO] TCP Tweaker settings added successfully."
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_line "[INFO] TCP Tweaker settings added successfully."
+ui_card_end
     echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
     menu-tcp
   else
-    
-echo -e "$COLOR1 $NC   Installation was canceled by the user!"
-    
+
+ui_line "Installation was canceled by the user!"
+
   fi
 }
 
 # menu tweaker
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1  $NC$COLBG1              ${WH}• TCP TWEAK PANEL •              $COLOR1  $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_screen "TCP TWEAK" "congestion control"
+ui_card_start
 tcp_status
 tcp_2_status
 bbr_status
-echo -e "$COLOR1 ${NC}  "
-echo -e "$COLOR1 ${NC}  ${WH}[${COLOR1}01${WH}]${NC} ${COLOR1}• ${WH}Install BBR      ${WH}[${COLOR1}04${WH}]${NC} ${COLOR1}• ${WH}Delete BBR ${NC}"
-echo -e "$COLOR1 ${NC}  ${WH}[${COLOR1}02${WH}]${NC} ${COLOR1}• ${WH}Install TCP 1    ${WH}[${COLOR1}05${WH}]${NC} ${COLOR1}• ${WH}Delete TCP 1${NC}"
-echo -e "$COLOR1 ${NC}  ${WH}[${COLOR1}03${WH}]${NC} ${COLOR1}• ${WH}Install TCP 2    ${WH}[${COLOR1}06${WH}]${NC} ${COLOR1}• ${WH}Delete TCP 2${NC}"
-echo -e "$COLOR1 ${NC}  "
-echo -e "$COLOR1 ${NC}  ${WH}[${COLOR1}00${WH}]${NC} ${COLOR1}• ${WH}GO BACK          ${WH}[${COLOR1}07${WH}]${NC} ${COLOR1}• ${WH}REBOOT${NC}"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e ""
-echo -ne " ${WH}Select menu ${COLOR1}: ${WH}"; read opt
+ui_blank
+ui_options "01:Install BBR" "04:Delete BBR" "02:Install TCP 1" "05:Delete TCP 1" "03:Install TCP 2" "06:Delete TCP 2" "07:Reboot"
+ui_card_end
+ui_back_hint
+ui_prompt
+read -r opt
 echo -e "$DF"
 case $opt in
 01 | 1) clear ; install_bbr ;;

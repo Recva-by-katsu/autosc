@@ -1,27 +1,22 @@
 #!/bin/bash
-dateFromServer=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
-biji=`date +"%Y-%m-%d" -d "$dateFromServer"`
-###########- COLOR CODE -##############
-colornow=$(cat /etc/yudhynetwork/theme/color.conf)
-NC="\e[0m"
-RED="\033[0;31m" 
-COLOR1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "TEXT" | cut -d: -f2|sed 's/ //g')"
-COLBG1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "BG" | cut -d: -f2|sed 's/ //g')" 
-WH='\033[1;37m'                  
+UI_LIB=/usr/local/lib/katsutun/ui.sh
+[ -r "$UI_LIB" ] || { echo "KatsuTun UI library is missing. Run: katsu-update apply --force"; exit 1; }
+# shellcheck source=data/katsu-ui.sh
+. "$UI_LIB"
+ui_init
+red="$UI_BAD"; green="$UI_GOOD"; yell="$UI_WARN"; tyblue="$UI_ACCENT"
+# Legacy palette names used by the screens below now map onto the shared theme.
+NC="$UI_RESET"; RED="$UI_BAD"; GREEN="$UI_GOOD"; YELLOW="$UI_WARN"
+COLOR1="$UI_ACCENT"; COLBG1="$UI_BAR"; WH="$UI_TEXT"
 ###########- KatsuTun -##########
 
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}             ${WH}• INFO PANEL MENU •               ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e " $COLOR1┌───────────────────────────────────────────────┐${NC}"
+ui_title "INFO PANEL MENU"
+ui_card_start
 echo -e ""
 cat log-install.txt
 echo -e ""
-echo -e " $COLOR1└───────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "  Press any key to back on menu"
+ui_pause
 menu

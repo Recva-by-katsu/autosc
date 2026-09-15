@@ -1,133 +1,105 @@
 #!/bin/bash
-dateFromServer=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
-biji=`date +"%Y-%m-%d" -d "$dateFromServer"`
-###########- COLOR CODE -##############
-colornow=$(cat /etc/yudhynetwork/theme/color.conf)
-NC="\e[0m"
-RED="\033[0;31m" 
-COLOR1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "TEXT" | cut -d: -f2|sed 's/ //g')"
-COLBG1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "BG" | cut -d: -f2|sed 's/ //g')"    
-WH='\033[1;37m'                
+UI_LIB=/usr/local/lib/katsutun/ui.sh
+[ -r "$UI_LIB" ] || { echo "KatsuTun UI library is missing. Run: katsu-update apply --force"; exit 1; }
+# shellcheck source=data/katsu-ui.sh
+. "$UI_LIB"
+ui_init
+red="$UI_BAD"; green="$UI_GOOD"; yell="$UI_WARN"; tyblue="$UI_ACCENT"
+# Legacy palette names used by the screens below now map onto the shared theme.
+NC="$UI_RESET"; RED="$UI_BAD"; GREEN="$UI_GOOD"; YELLOW="$UI_WARN"
+COLOR1="$UI_ACCENT"; COLBG1="$UI_BAR"; WH="$UI_TEXT"
 ###########- END COLOR CODE -##########
 
 MYIP=$(wget -qO- ipinfo.io/ip);
 
 function menu1(){
     clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1  $NC$COLBG1                ${WH}• AUTO REBOOT •                $COLOR1  $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e " $COLOR1┌───────────────────────────────────────────────┐${NC}"
+ui_screen "AUTO REBOOT" "scheduled restart"
+ui_card_start
 FILE=/etc/cron.d/re_otm
 if [ -f "$FILE" ]; then
 rm -f /etc/cron.d/re_otm
-else 
+else
 re="ok"
 fi
 rm -f /etc/cron.d/auto_reboot
 echo "*/30 * * * * root /usr/bin/rebootvps" > /etc/cron.d/auto_reboot && chmod +x /etc/cron.d/auto_reboot
-echo -e " $COLOR1 $NC [INFO] Auto Reboot Active Successfully"
-echo -e " $COLOR1 $NC [INFO] Auto Reboot : Every 30 Min"
-echo -e " $COLOR1 $NC [INFO] Active & Running Automaticly"
-echo -e " $COLOR1└───────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_line "[INFO] Auto Reboot Active Successfully"
+ui_line "[INFO] Auto Reboot : Every 30 Min"
+ui_line "[INFO] Active & Running Automaticly"
+ui_card_end
 echo ""
-read -n 1 -s -r -p "  Press any key to back on menu"
-autoboot  
+ui_pause
+autoboot
 }
 function menu2(){
         clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1  $NC$COLBG1                ${WH}• AUTO REBOOT •                $COLOR1  $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e " $COLOR1┌───────────────────────────────────────────────┐${NC}"
+ui_screen "AUTO REBOOT" "scheduled restart"
+ui_card_start
 FILE=/etc/cron.d/re_otm
 if [ -f "$FILE" ]; then
 rm -f /etc/cron.d/re_otm
-else 
+else
 re="ok"
 fi
 rm -f /etc/cron.d/auto_reboot
 echo "0 * * * * root /usr/bin/rebootvps" > /etc/cron.d/auto_reboot && chmod +x /etc/cron.d/auto_reboot
-echo -e " $COLOR1 $NC [INFO] Auto Reboot Active Successfully"
-echo -e " $COLOR1 $NC [INFO] Auto Reboot : Every 1 Hours"
-echo -e " $COLOR1 $NC [INFO] Active & Running Automaticly"
-echo -e " $COLOR1└───────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_line "[INFO] Auto Reboot Active Successfully"
+ui_line "[INFO] Auto Reboot : Every 1 Hours"
+ui_line "[INFO] Active & Running Automaticly"
+ui_card_end
 echo ""
-read -n 1 -s -r -p "  Press any key to back on menu"
-autoboot  
+ui_pause
+autoboot
 }
 function menu3(){
         clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1  $NC$COLBG1                ${WH}• AUTO REBOOT •                $COLOR1  $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e " $COLOR1┌───────────────────────────────────────────────┐${NC}"
+ui_screen "AUTO REBOOT" "scheduled restart"
+ui_card_start
 FILE=/etc/cron.d/re_otm
 if [ -f "$FILE" ]; then
 rm -f /etc/cron.d/re_otm
-else 
+else
 re="ok"
 fi
 rm -f /etc/cron.d/auto_reboot
 echo "0 */12 * * * root /usr/bin/rebootvps" > /etc/cron.d/auto_reboot && chmod +x /etc/cron.d/auto_reboot
-echo -e " $COLOR1 $NC [INFO] Auto Reboot Active Successfully"
-echo -e " $COLOR1 $NC [INFO] Auto Reboot : Every 12 Hours"
-echo -e " $COLOR1 $NC [INFO] Active & Running Automaticly"
-echo -e " $COLOR1└───────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_line "[INFO] Auto Reboot Active Successfully"
+ui_line "[INFO] Auto Reboot : Every 12 Hours"
+ui_line "[INFO] Active & Running Automaticly"
+ui_card_end
 echo ""
-read -n 1 -s -r -p "  Press any key to back on menu"
-autoboot  
+ui_pause
+autoboot
 }
 function menu4(){
         clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1  $NC$COLBG1                ${WH}• AUTO REBOOT •                $COLOR1  $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e " $COLOR1┌───────────────────────────────────────────────┐${NC}"
+ui_screen "AUTO REBOOT" "scheduled restart"
+ui_card_start
 FILE=/etc/cron.d/re_otm
 if [ -f "$FILE" ]; then
 rm -f /etc/cron.d/re_otm
-else 
+else
 re="ok"
 fi
 rm -f /etc/cron.d/auto_reboot
 echo "0 5 * * * root /usr/bin/rebootvps" > /etc/cron.d/auto_reboot && chmod +x /etc/cron.d/auto_reboot
-echo -e " $COLOR1 $NC [INFO] Auto Reboot Active Successfully"
-echo -e " $COLOR1 $NC [INFO] Auto Reboot : Every 24 Hours"
-echo -e " $COLOR1 $NC [INFO] Active & Running Automaticly"
-echo -e " $COLOR1└───────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_line "[INFO] Auto Reboot Active Successfully"
+ui_line "[INFO] Auto Reboot : Every 24 Hours"
+ui_line "[INFO] Active & Running Automaticly"
+ui_card_end
 echo ""
-read -n 1 -s -r -p "  Press any key to back on menu"
-autoboot  
+ui_pause
+autoboot
 }
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1  $NC$COLBG1                ${WH}• AUTO REBOOT •                $COLOR1  $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e " $COLOR1┌───────────────────────────────────────────────┐${NC}"
-echo -e " $COLOR1 $NC   ${WH}[${COLOR1}01${WH}]${NC} • ${WH}Every 30 Min  ${WH}[${COLOR1}03${WH}]${NC} • ${WH}Every 12 H/s${NC}"
-echo -e " $COLOR1 $NC   ${WH}[${COLOR1}02${WH}]${NC} • ${WH}Every 60 Min  ${WH}[${COLOR1}04${WH}]${NC} • ${WH}Every 24 H/s${NC}"
-echo -e " $COLOR1 $NC   ${WH}[${COLOR1}05${WH}]${NC} • ${WH}Restart${NC}"
-echo -e " $COLOR1 $NC "
-echo -e " $COLOR1 $NC   ${WH}[00]${NC} • Go Back"
-echo -e " $COLOR1└───────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e ""
-echo -ne " ${WH}Select menu ${COLOR1}: ${WH}"; read opt
+ui_screen "AUTO REBOOT" "scheduled restart"
+ui_card_start
+ui_options "01:Every 30 minutes" "03:Every 12 hours" "02:Every 60 minutes" "04:Every 24 hours" "05:Restart now"
+ui_card_end
+ui_back_hint
+ui_prompt
+read -r opt
 case $opt in
 01 | 1) clear ; menu1 ;;
 02 | 2) clear ; menu2 ;;

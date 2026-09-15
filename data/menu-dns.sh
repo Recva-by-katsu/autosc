@@ -6,11 +6,15 @@
 . /etc/katsutun/repo.conf
 MYIP=$(wget -qO- ipinfo.io/ip);
 
-colornow=$(cat /etc/yudhynetwork/theme/color.conf)
-NC="\e[0m"
-COLOR1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "TEXT" | cut -d: -f2|sed 's/ //g')"
-COLBG1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "BG" | cut -d: -f2|sed 's/ //g')"
-WH='\033[1;37m'
+UI_LIB=/usr/local/lib/katsutun/ui.sh
+[ -r "$UI_LIB" ] || { echo "KatsuTun UI library is missing. Run: katsu-update apply --force"; exit 1; }
+# shellcheck source=data/katsu-ui.sh
+. "$UI_LIB"
+ui_init
+red="$UI_BAD"; green="$UI_GOOD"; yell="$UI_WARN"; tyblue="$UI_ACCENT"
+# Legacy palette names used by the screens below now map onto the shared theme.
+NC="$UI_RESET"; RED="$UI_BAD"; GREEN="$UI_GOOD"; YELLOW="$UI_WARN"
+COLOR1="$UI_ACCENT"; COLBG1="$UI_BAR"; WH="$UI_TEXT"
 
 APIGIT=$(cat /etc/yudhynetwork/github/api)
 EMAILGIT=$(cat /etc/yudhynetwork/github/email)
@@ -24,102 +28,74 @@ export INFO="[${GREEN}INFO${NC}]";
 
 function setdns(){
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}                 • USERS LOGS •                ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "USERS LOGS"
+ui_card_start
 read -p "   DNS : " setdnss
 
 if [ -z $setdnss ]; then
-echo -e "$COLOR1 ${NC}"
-echo -e "$COLOR1 ${NC}  ${ERROR} DNS Cannot Be Empty";
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_blank
+ui_line "${ERROR} DNS Cannot Be Empty";
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "   Press any key to back on menu"
-menu-dns 
+ui_pause
+menu-dns
 else
 echo "$setdnss" > /root/dns
-echo -e "$COLOR1 ${NC}  ${INFO} Copy DNS To Resolv.conf";
+ui_line "${INFO} Copy DNS To Resolv.conf";
 echo "nameserver $setdnss" > /etc/resolv.conf
 sleep 2
-echo -e "$COLOR1 ${NC}  ${INFO} Copy DNS To Resolv.conf.d/head";
+ui_line "${INFO} Copy DNS To Resolv.conf.d/head";
 echo "nameserver $setdnss" > /etc/resolvconf/resolv.conf.d/head
 sleep 2
-echo -e "$COLOR1 ${NC}  ${INFO} DNS Update Successfully";
+ui_line "${INFO} DNS Update Successfully";
 fi
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "   Press any key to back on menu"
-menu-dns 
+ui_pause
+menu-dns
 }
 
 function resdns(){
     clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}                 • USERS LOGS •                ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "USERS LOGS"
+ui_card_start
 read -p "    Reset Default DNS [Y/N]: " -e answer
 if [[ "$answer" = 'y' ]]; then
 dnsfile="/root/dns"
 if test -f "$dnsfile"; then
 rm /root/dns
 fi
-echo -e "$COLOR1 ${NC}"
-echo -e "$COLOR1 ${NC}  ${INFO} Delete Resolv.conf DNS";
+ui_blank
+ui_line "${INFO} Delete Resolv.conf DNS";
 echo "nameserver 8.8.8.8" > /etc/resolv.conf
 sleep 2
-echo -e "$COLOR1 ${NC}  ${INFO} Delete Resolv.conf.d/head DNS";
+ui_line "${INFO} Delete Resolv.conf.d/head DNS";
 echo "nameserver 8.8.8.8" > /etc/resolvconf/resolv.conf.d/head
 sleep 2
 else
-echo -e "$COLOR1 ${NC}"
-echo -e "$COLOR1 ${NC}   $INFO Operation Cancelled By User"
+ui_blank
+ui_line "$INFO Operation Cancelled By User"
 fi
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
+ui_card_end
 echo -e ""
-read -n 1 -s -r -p "   Press any key to back on menu"
-menu-dns 
+ui_pause
+menu-dns
 }
 
 function check-dns(){
     bash <(curl -sSL "$RAW/data/ceknet.sh")
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu
 }
 
-clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}                 • USERS LOGS •                ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-
-dnsfile="/root/dns"
-if test -f "$dnsfile"; then
-udns=$(cat /root/dns)
-echo -e "$COLOR1 ${NC}"
-echo -e "$COLOR1 ${NC}   Active DNS : $udns"
-echo -e "$COLOR1 ${NC}"
-fi
-echo -e "$COLOR1 ${NC}  ${WH}[${COLOR1}01${WH}]$NC ${COLOR1}• ${WH}CHANGE DNS       ${WH}[${COLOR1}03${WH}]$NC ${COLOR1}• ${WH}CONTENT CEK" 
-echo -e "$COLOR1 ${NC}  ${WH}[${COLOR1}02${WH}]$NC ${COLOR1}• ${WH}RESET DNS        ${WH}[${COLOR1}04${WH}]$NC ${COLOR1}• ${WH}REBOOT"
-echo -e "$COLOR1 ${NC}"
-echo -e "$COLOR1 ${NC}  ${WH}[${COLOR1}00${WH}]$NC ${COLOR1}• ${WH}GO BACK${NC}"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e ""
-echo -ne " ${WH}Select menu ${COLOR1}: ${WH}"; read opt
+ui_screen "DNS MANAGER" "resolver used by this VPS"
+ui_card_start
+[ -f /root/dns ] && ui_kv "Active DNS" "$(cat /root/dns)"
+ui_options "01:Change DNS" "03:Content check" "02:Reset DNS" "04:Reboot"
+ui_card_end
+ui_back_hint
+ui_prompt
+read -r opt
 case $opt in
 01 | 1) clear ; setdns ;;
 02 | 2) clear ; resdns ;;
