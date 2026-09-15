@@ -216,9 +216,10 @@ class Panel:
         else:
             self.box([[(key.upper() + " ", "blue"), (data["traffic"][key], "green")]
                       for key in ("today", "yesterday", "month")])
-        self.edge(self.width, 0)
-        self.row([("access all features ", "gold"), ("menu", "green"), (" command", "white")], self.width, 0)
-        self.edge(self.width, 0, True)
+        if not os.environ.get("KATSU_DASHBOARD_COMPACT"):
+            self.edge(self.width, 0)
+            self.row([("access all features ", "gold"), ("menu", "green"), (" command", "white")], self.width, 0)
+            self.edge(self.width, 0, True)
         return "\n".join(self.lines) + "\n"
 
 

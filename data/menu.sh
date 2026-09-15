@@ -10,37 +10,49 @@ UI_LIB=/usr/local/lib/katsutun/ui.sh
 ui_init
 
 set_domain() {
-    ui_clear
-    ui_header "SET DOMAIN" "TLS CONFIGURATION"
+    ui_screen "SET DOMAIN" "TLS configuration"
     ui_card_start
-    ui_notice "Enter the domain or subdomain used by this VPS."
+    ui_notice "Enter the domain or subdomain that points to this VPS."
+    ui_notice "Current: ${UI_TEXT}$(cat /etc/xray/domain 2>/dev/null || echo -)${UI_RESET}"
     ui_card_end
-    printf '\n%b›%b New domain: ' "$UI_ACCENT" "$UI_RESET"
+    ui_prompt "New domain:"
     read -r new_domain
     if [ -z "$new_domain" ]; then
-        ui_notice "${UI_WARN}No domain entered. Nothing was changed.${UI_RESET}"
-        printf 'Press any key to return…'; read -r -n 1 -s
-        exec menu
+        ui_card_start; ui_warn "No domain entered. Nothing was changed."; ui_card_end
+        ui_pause; exec menu
     fi
     printf 'IP=%s\n' "$new_domain" > /var/lib/yudhynetwork-pro/ipvps.conf
     printf '%s\n' "$new_domain" > /etc/xray/domain
     ui_card_start
-    ui_notice "${UI_GOOD}✓${UI_RESET} Domain saved. Renew the certificate to activate it."
+    ui_ok "Domain saved. Renew the certificate to activate it."
     ui_card_end
-    printf 'Press any key to renew the certificate…'; read -r -n 1 -s
+    ui_pause
     exec crtxray
 }
 
+svc() { ui_badge "$(systemctl is-active "$1" 2>/dev/null)"; }
+eval "$(katsu-update status 2>/dev/null | grep -E '^(STATE|LATEST)=')"
+
 ui_clear
-katsu-dashboard || { echo "Dashboard unavailable. Run: katsu-update apply --force"; exit 1; }
-printf '\n'
-options=("SSH & OPENVPN" "VMESS" "VLESS" "TROJAN" "SHADOWSOCKS" "DNS MANAGER"
-         "APPEARANCE" "BACKUP & RESTORE" "SET DOMAIN" "RENEW CERTIFICATE"
-         "SERVER SETTINGS" "SYSTEM INFO" "REST API" "UPDATE MANAGER")
-for i in "${!options[@]}"; do
-    printf '  [%02d] %s\n' "$((i + 1))" "${options[$i]}"
-done
-printf '  [00] EXIT PANEL\n'
+if [ -x /usr/bin/katsu-dashboard ]; then
+    KATSU_DASHBOARD_COMPACT=1 katsu-dashboard
+else
+    ui_title "${BRAND:-KATSUTUN}" "$(cat /etc/xray/domain 2>/dev/null)"
+fi
+
+ui_card_start "ACCOUNTS"
+ui_options "01:SSH & OpenVPN" "02:VMess" "03:VLESS" "04:Trojan" "05:Shadowsocks" "06:DNS manager"
+ui_card_end
+ui_card_start "SERVER"
+ui_options "07:Appearance" "08:Backup & restore" "09:Set domain" "10:Renew certificate" \
+           "11:Server settings" "12:System info" "13:REST API:$(svc autosc-api)" "14:Update manager"
+ui_card_end
+if [ "${STATE:-uptodate}" = available ]; then
+    ui_card_start
+    ui_warn "Update ${LATEST} available - type 100 to install"
+    ui_card_end
+fi
+ui_back_hint
 ui_prompt
 read -r opt || exit 0
 
@@ -59,7 +71,7 @@ case $opt in
     12) clear; exec info ;;
     13) clear; exec menu-api ;;
     14) clear; exec menu-update ;;
-    100) clear; update; read -r -n 1 -s; exec menu ;;
-    00|0|x|X) clear; exit 0 ;;
-    *) clear; exec menu ;;
+    100) clear; update; ui_pause; exec menu ;;
+    00|0|x|X|q) clear; exit 0 ;;
+    *) exec menu ;;
 esac

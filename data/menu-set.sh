@@ -1,13 +1,15 @@
 #!/bin/bash
 #dateFromServer=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
 #biji=`date +"%Y-%m-%d" -d "$dateFromServer"`
-###########- COLOR CODE -##############
-colornow=$(cat /etc/yudhynetwork/theme/color.conf)
-NC="\e[0m"
-RED="\033[0;31m" 
-COLOR1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "TEXT" | cut -d: -f2|sed 's/ //g')"
-COLBG1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "BG" | cut -d: -f2|sed 's/ //g')"  
-WH='\033[1;37m'                  
+UI_LIB=/usr/local/lib/katsutun/ui.sh
+[ -r "$UI_LIB" ] || { echo "KatsuTun UI library is missing. Run: katsu-update apply --force"; exit 1; }
+# shellcheck source=data/katsu-ui.sh
+. "$UI_LIB"
+ui_init
+red="$UI_BAD"; green="$UI_GOOD"; yell="$UI_WARN"; tyblue="$UI_ACCENT"
+# Legacy palette names used by the screens below now map onto the shared theme.
+NC="$UI_RESET"; RED="$UI_BAD"; GREEN="$UI_GOOD"; YELLOW="$UI_WARN"
+COLOR1="$UI_ACCENT"; COLBG1="$UI_BAR"; WH="$UI_TEXT"
 ###########- Yudhy Network -##########
 function status(){
 clear
@@ -58,7 +60,7 @@ resdb="${WH}ONLINE${NC}"
 else
 resdb="${red}OFFLINE${NC}"
 fi
- 
+
 v2r=$(service $rekk status | grep active | cut -d ' ' $stat)
 if [ "$v2r" = "active" ]; then
 resv2r="${WH}ONLINE${NC}"
@@ -115,84 +117,74 @@ ressq="${WH}ONLINE${NC}"
 else
 ressq="${red}OFFLINE${NC}"
 fi
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• SERVER STATUS •               ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e " $COLOR1┌───────────────────────────────────────────────┐${NC}"
-echo -e " $COLOR1 ${NC}  ${COLOR1}• ${WH}SSH & VPN                        ${COLOR1}• $ressh"
-echo -e " $COLOR1 ${NC}  ${COLOR1}• ${WH}OVPN TCP                         ${COLOR1}• $ovpntcp"
-echo -e " $COLOR1 ${NC}  ${COLOR1}• ${WH}OVPN UDP                         ${COLOR1}• $ovpnudp"
-echo -e " $COLOR1 ${NC}  ${COLOR1}• ${WH}OVPN OHP                         ${COLOR1}• $ohp"
-echo -e " $COLOR1 ${NC}  ${COLOR1}• ${WH}SQUID                            ${COLOR1}• $ressq"
-echo -e " $COLOR1 ${NC}  ${COLOR1}• ${WH}DROPBEAR                         ${COLOR1}• $resdb"
-echo -e " $COLOR1 ${NC}  ${COLOR1}• ${WH}NGINX                            ${COLOR1}• $resnx"
-echo -e " $COLOR1 ${NC}  ${COLOR1}• ${WH}WS DROPBEAR                      ${COLOR1}• $rews"
-echo -e " $COLOR1 ${NC}  ${COLOR1}• ${WH}WS STUNNEL                       ${COLOR1}• $rews2"
-echo -e " $COLOR1 ${NC}  ${COLOR1}• ${WH}STUNNEL                          ${COLOR1}• $resst"
-echo -e " $COLOR1 ${NC}  ${COLOR1}• ${WH}XRAY-SS                          ${COLOR1}• $resv2r"
-echo -e " $COLOR1 ${NC}  ${COLOR1}• ${WH}XRAY                             ${COLOR1}• $resv2r"
-echo -e " $COLOR1 ${NC}  ${COLOR1}• ${WH}VLESS                            ${COLOR1}• $resvles"
-echo -e " $COLOR1 ${NC}  ${COLOR1}• ${WH}TROJAN                           ${COLOR1}• $restr"
-echo -e " $COLOR1└───────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_title "SERVER STATUS"
+ui_card_start
+ui_kv "SSH & VPN" "$ressh"
+ui_kv "OVPN TCP" "$ovpntcp"
+ui_kv "OVPN UDP" "$ovpnudp"
+ui_kv "OVPN OHP" "$ohp"
+ui_kv "SQUID" "$ressq"
+ui_kv "DROPBEAR" "$resdb"
+ui_kv "NGINX" "$resnx"
+ui_kv "WS DROPBEAR" "$rews"
+ui_kv "WS STUNNEL" "$rews2"
+ui_kv "STUNNEL" "$resst"
+ui_kv "XRAY-SS" "$resv2r"
+ui_kv "XRAY" "$resv2r"
+ui_kv "VLESS" "$resvles"
+ui_kv "TROJAN" "$restr"
+ui_card_end
 echo ""
-read -n 1 -s -r -p "  Press any key to back on menu"
+ui_pause
 menu-set
 }
 function restart(){
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• SERVER STATUS •               ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e " $COLOR1┌───────────────────────────────────────────────┐${NC}"
+ui_title "SERVER STATUS"
+ui_card_start
 systemctl daemon-reload
-echo -e " $COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}] ${COLOR1}• ${WH}Starting ...                        $COLOR1 ${NC}"
+ui_notice "Starting ..."
 sleep 1
 systemctl restart ssh
-echo -e " $COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}] ${COLOR1}• ${WH}Restarting SSH Services             $COLOR1 ${NC}"
+ui_notice "Restarting SSH Services"
 sleep 1
 systemctl restart squid
-echo -e " $COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}] ${COLOR1}• ${WH}Restarting Squid Services           $COLOR1 ${NC}"
+ui_notice "Restarting Squid Services"
 sleep 1
 systemctl restart openvpn
 systemctl restart --now openvpn-server@server-tcp-1194
 systemctl restart --now openvpn-server@server-udp-2200
-echo -e " $COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}] ${COLOR1}• ${WH}Restarting OpenVPN Services         $COLOR1 ${NC}"
+ui_notice "Restarting OpenVPN Services"
 sleep 1
 systemctl restart nginx
-echo -e " $COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}] ${COLOR1}• ${WH}Restarting Nginx Services           $COLOR1 ${NC}"
+ui_notice "Restarting Nginx Services"
 sleep 1
 systemctl restart dropbear
-echo -e " $COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}] ${COLOR1}• ${WH}Restarting Dropbear Services        $COLOR1 ${NC}"
+ui_notice "Restarting Dropbear Services"
 sleep 1
 systemctl restart ws-dropbear
-echo -e " $COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}] ${COLOR1}• ${WH}Restarting Ws-Dropbear Services     $COLOR1 ${NC}"
+ui_notice "Restarting Ws-Dropbear Services"
 sleep 1
 systemctl restart ws-stunnel
-echo -e " $COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}] ${COLOR1}• ${WH}Restarting Ws-Stunnel Services      $COLOR1 ${NC}"
+ui_notice "Restarting Ws-Stunnel Services"
 sleep 1
 systemctl restart stunnel4
-echo -e " $COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}] ${COLOR1}• ${WH}Restarting Stunnel4 Services        $COLOR1 ${NC}"
+ui_notice "Restarting Stunnel4 Services"
 sleep 1
 systemctl restart xray
-echo -e " $COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}] ${COLOR1}• ${WH}Restarting Xray Services            $COLOR1 ${NC}"
+ui_notice "Restarting Xray Services"
 sleep 1
 systemctl restart cron
-echo -e " $COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}] ${COLOR1}• ${WH}Restarting Cron Services            $COLOR1 ${NC}"
-echo -e " $COLOR1 ${NC}  ${WH}[${COLOR1}INFO${WH}] ${COLOR1}• ${WH}All Services Restates Successfully  $COLOR1 ${NC}"
+ui_notice "Restarting Cron Services"
+ui_notice "All Services Restates Successfully"
 sleep 1
-echo -e " $COLOR1└───────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_card_end
 echo ""
-read -n 1 -s -r -p "  Press any key to back on menu"
+ui_pause
 menu-set
 }
 
-[[ -f /etc/ontorrent ]] && sts="\033[0;32mON \033[0m" || sts="\033[1;31mOFF\033[0m"
+[[ -f /etc/ontorrent ]] && sts_plain="ON" || sts_plain="OFF"
 
 enabletorrent() {
 [[ ! -f /etc/ontorrent ]] && {
@@ -209,8 +201,8 @@ sudo iptables -A FORWARD -m string --algo bm --string "announce" -j DROP
 sudo iptables -A FORWARD -m string --algo bm --string "info_hash" -j DROP
 sudo iptables-save > /etc/iptables.up.rules
 sudo iptables-restore -t < /etc/iptables.up.rules
-sudo netfilter-persistent save >/dev/null 2>&1  
-sudo netfilter-persistent reload >/dev/null 2>&1 
+sudo netfilter-persistent save >/dev/null 2>&1
+sudo netfilter-persistent reload >/dev/null 2>&1
 touch /etc/ontorrent
 menu-set
 } || {
@@ -228,30 +220,19 @@ sudo iptables -D FORWARD -m string --algo bm --string "info_hash" -j DROP
 sudo iptables-save > /etc/iptables.up.rules
 sudo iptables-restore -t < /etc/iptables.up.rules
 sudo netfilter-persistent save >/dev/null 2>&1
-sudo netfilter-persistent reload >/dev/null 2>&1 
+sudo netfilter-persistent reload >/dev/null 2>&1
 rm -f /etc/ontorrent
 menu-set
 }
 }
 
-clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1  $NC$COLBG1               ${WH}• VPS SETTING •                 $COLOR1  $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e " $COLOR1┌───────────────────────────────────────────────┐${NC}"
-echo -e " $COLOR1 $NC   ${WH}[${COLOR1}01${WH}]${NC} ${COLOR1}• ${WH}RUNNING           ${WH}[${COLOR1}06${WH}]${NC} ${COLOR1}• ${WH}RESTART ALL"
-echo -e " $COLOR1 $NC   ${WH}[${COLOR1}02${WH}]${NC} ${COLOR1}• ${WH}SET BANNER        ${WH}[${COLOR1}07${WH}]${NC} ${COLOR1}• ${WH}AUTO REBOOT"
-echo -e " $COLOR1 $NC   ${WH}[${COLOR1}03${WH}]${NC} ${COLOR1}• ${WH}BANDWITH USAGE    ${WH}[${COLOR1}08${WH}]${NC} ${COLOR1}• ${WH}SPEEDTEST"
-echo -e " $COLOR1 $NC   ${WH}[${COLOR1}04${WH}]${NC} ${COLOR1}• ${WH}ANTI TORRENT${NC} $sts  ${WH}[${COLOR1}09${WH}]${NC} ${COLOR1}• ${WH}HIDESSH"
-echo -e " $COLOR1 $NC   ${WH}[${COLOR1}05${WH}]${NC} ${COLOR1}• ${WH}TCP TWEAK         ${WH}[${COLOR1}10${WH}]${NC} ${COLOR1}• ${WH}REGION CHECKER"
-echo -e " $COLOR1 $NC"
-echo -e " $COLOR1 $NC   ${WH}[${COLOR1}00${WH}]${NC} ${COLOR1}• ${WH}GO BACK$NC"
-echo -e " $COLOR1└───────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e ""
-echo -ne " ${WH}Select menu ${COLOR1}: ${WH}"; read opt
+ui_screen "SERVER SETTINGS" "status, tweaks and tools"
+ui_card_start
+ui_options "01:Running services" "06:Restart all" "02:Set banner" "07:Auto reboot" "03:Bandwidth usage" "08:Speedtest" "04:Anti torrent:$sts_plain" "09:HideSSH" "05:TCP tweak" "10:Region checker"
+ui_card_end
+ui_back_hint
+ui_prompt
+read -r opt
 case $opt in
 01 | 1) clear ; status ;;
 02 | 2) clear ; nano /etc/issue.net ; menu-set ;;
@@ -263,6 +244,6 @@ case $opt in
 08 | 8) clear ; mspeed ;;
 09 | 9) clear ; hidessh ;;
 10) clear ; regionchecker ;;
-00 | 0) clear ; menu ;;
+00 | 0 | x | X) clear ; menu ;;
 *) clear ; menu-set ;;
 esac

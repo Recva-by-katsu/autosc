@@ -37,7 +37,7 @@ SSH memakai daftar akun script, bukan seluruh user Linux.
 Bandwidth `M` berarti MiB (RX + TX), memakai vnStat JSON v2 pada interface rute
 default atau `interface` di konfigurasi. Data yang hilang, vnStat lama, atau
 interface yang tidak dapat ditentukan ditampilkan `N/A`, bukan nol palsu.
-Tes: `python3 tests/test-dashboard.py` dan `python3 tests/test-ui.py`.
+Semua submenu memakai komponen yang sama (`data/katsu-ui.sh`): frame otomatis 36–60 kolom, opsi dua kolom pada layar lebar dan satu kolom pada layar sempit, `[00] Back` / `[x] Exit` di setiap layar. Tes: `python3 tests/test-dashboard.py`, `python3 tests/test-ui.py`, dan `python3 tests/test-menus.py` (merender semua menu terhadap VPS stub).
 
 ## Kompatibilitas Sistem
 

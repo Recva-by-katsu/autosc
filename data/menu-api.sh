@@ -4,14 +4,13 @@
 [ -r /etc/katsutun/repo.conf ] || katsu-update status >/dev/null 2>&1
 # shellcheck source=data/repo.conf
 . /etc/katsutun/repo.conf
-###########- COLOR CODE -##############
-colornow=$(cat /etc/yudhynetwork/theme/color.conf 2>/dev/null)
-NC="\e[0m"
-RED="\033[0;31m"
-GREEN="\033[0;32m"
-COLOR1="$(cat /etc/yudhynetwork/theme/$colornow 2>/dev/null | grep -w "TEXT" | cut -d: -f2|sed 's/ //g')"
-COLBG1="$(cat /etc/yudhynetwork/theme/$colornow 2>/dev/null | grep -w "BG" | cut -d: -f2|sed 's/ //g')"
-WH='\033[1;37m'
+UI_LIB=/usr/local/lib/katsutun/ui.sh
+[ -r "$UI_LIB" ] || { echo "KatsuTun UI library is missing. Run: katsu-update apply --force"; exit 1; }
+# shellcheck source=data/katsu-ui.sh
+. "$UI_LIB"
+ui_init
+red="$UI_BAD"; green="$UI_GOOD"; yell="$UI_WARN"; tyblue="$UI_ACCENT"
+NC="$UI_RESET"; RED="$UI_BAD"; GREEN="$UI_GOOD"; COLOR1="$UI_ACCENT"; COLBG1="$UI_BAR"; WH="$UI_TEXT"
 ###########- KatsuTun -##########
 
 API_DIR="/etc/autosc-api"
@@ -64,34 +63,29 @@ PY
 }
 
 header() {
-clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}               ${WH}• API PANEL MENU •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_screen "REST API" "keys, docs and service control"
 }
 
 footer() {
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_footer
 }
 
 check_installed() {
 if [ ! -f "$API_BIN" ]; then
 header
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}  ${RED}[ERROR]${NC} API belum terpasang."
-echo -e "$COLOR1 ${NC}"
-echo -e "$COLOR1 ${NC}  Pasang sekarang dengan perintah :"
-echo -e "$COLOR1 ${NC}    ${WH}update${NC}"
-echo -e "$COLOR1 ${NC}"
-echo -e "$COLOR1 ${NC}  Atau langsung :"
-echo -e "$COLOR1 ${NC}    ${WH}wget -qO /tmp/i.sh $RAW/data/api/ins-api.sh${NC}"
-echo -e "$COLOR1 ${NC}    ${WH}bash /tmp/i.sh${NC}"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_card_start
+ui_line "${RED}[ERROR]${NC} API belum terpasang."
+ui_blank
+ui_line "Pasang sekarang dengan perintah :"
+ui_line "${WH}update${NC}"
+ui_blank
+ui_line "Atau langsung :"
+ui_line "${WH}wget -qO /tmp/i.sh $RAW/data/api/ins-api.sh${NC}"
+ui_line "${WH}bash /tmp/i.sh${NC}"
+ui_card_end
 footer
 echo ""
-read -n 1 -s -r -p "  Press any key to back on menu"
+ui_pause
 menu
 exit 0
 fi
@@ -99,7 +93,7 @@ fi
 
 function genkey(){
 header
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_card_start
 echo -ne "  Nama key (misal: bot-telegram) : "; read keyname
 [ -z "$keyname" ] && keyname="unnamed"
 newkey=$(apicall create "$keyname")
@@ -117,29 +111,29 @@ echo -e "  Contoh pemakaian:"
 echo -e "  ${WH}curl -H \"X-API-Key: $newkey\" \\
        https://$domain/api/system/info${NC}"
 fi
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_card_end
 footer
 echo ""
-read -n 1 -s -r -p "  Press any key to back on menu"
+ui_pause
 menu-api
 }
 
 function listkey(){
 header
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_card_start
 echo ""
 apicall list
 echo ""
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_card_end
 footer
 echo ""
-read -n 1 -s -r -p "  Press any key to back on menu"
+ui_pause
 menu-api
 }
 
 function revokekey(){
 header
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_card_start
 echo ""
 apicall list
 echo ""
@@ -154,16 +148,16 @@ else
 echo -e "  ${RED}[ERROR]${NC} Key ${WH}$keyid${NC} tidak ditemukan"
 fi
 fi
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_card_end
 footer
 echo ""
-read -n 1 -s -r -p "  Press any key to back on menu"
+ui_pause
 menu-api
 }
 
 function delkey(){
 header
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_card_start
 echo ""
 apicall list
 echo ""
@@ -178,35 +172,35 @@ else
 echo -e "  ${RED}[ERROR]${NC} Key ${WH}$keyid${NC} tidak ditemukan"
 fi
 fi
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_card_end
 footer
 echo ""
-read -n 1 -s -r -p "  Press any key to back on menu"
+ui_pause
 menu-api
 }
 
 function apirestart(){
 header
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}  ${COLOR1}[INFO]${NC} Restarting API service ..."
+ui_card_start
+ui_line "${COLOR1}[INFO]${NC} Restarting API service ..."
 systemctl restart autosc-api
 sleep 2
 if [ "$(systemctl is-active autosc-api)" = "active" ]; then
-echo -e "$COLOR1 ${NC}  ${GREEN}[OK]${NC} API service berjalan"
+ui_line "${GREEN}[OK]${NC} API service berjalan"
 else
-echo -e "$COLOR1 ${NC}  ${RED}[ERROR]${NC} API gagal start. Cek: journalctl -u autosc-api -n 50"
+ui_line "${RED}[ERROR]${NC} API gagal start. Cek: journalctl -u autosc-api -n 50"
 fi
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_card_end
 footer
 echo ""
-read -n 1 -s -r -p "  Press any key to back on menu"
+ui_pause
 menu-api
 }
 
 function apitest(){
 header
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}  ${COLOR1}[INFO]${NC} Menguji endpoint lokal ..."
+ui_card_start
+ui_line "${COLOR1}[INFO]${NC} Menguji endpoint lokal ..."
 echo ""
 health=$(curl -s --max-time 5 http://127.0.0.1:8081/health)
 if [ -n "$health" ]; then
@@ -222,23 +216,23 @@ echo -e "  ${RED}[FAIL]${NC} Public : https://$domain/api/health tidak merespon"
 echo -e "         Cek nginx: nginx -t && systemctl reload nginx"
 fi
 echo ""
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_card_end
 footer
 echo ""
-read -n 1 -s -r -p "  Press any key to back on menu"
+ui_pause
 menu-api
 }
 
 function apiinfo(){
 header
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${WH}Base URL   ${COLOR1}: ${WH}https://$domain/api${NC}"
-echo -e "$COLOR1 ${NC} ${WH}Dokumentasi${COLOR1}: ${WH}https://$domain/docs/${NC}"
-echo -e "$COLOR1 ${NC} ${WH}OpenAPI    ${COLOR1}: ${WH}https://$domain/api/openapi.json${NC}"
-echo -e "$COLOR1 ${NC} ${WH}Service    ${COLOR1}: ${WH}autosc-api (port lokal 8081)${NC}"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${WH}Endpoint utama${NC}"
+ui_card_start
+ui_line "${WH}Base URL   ${COLOR1}: ${WH}https://$domain/api${NC}"
+ui_line "${WH}Dokumentasi${COLOR1}: ${WH}https://$domain/docs/${NC}"
+ui_line "${WH}OpenAPI    ${COLOR1}: ${WH}https://$domain/api/openapi.json${NC}"
+ui_line "${WH}Service    ${COLOR1}: ${WH}autosc-api (port lokal 8081)${NC}"
+ui_card_end
+ui_card_start
+ui_line "${WH}Endpoint utama${NC}"
 echo -e "  ${COLOR1}GET   ${NC}/system/info          Info VPS & service"
 echo -e "  ${COLOR1}POST  ${NC}/system/services/restart"
 echo -e "  ${COLOR1}GET   ${NC}/ssh   /vmess /vless /trojan /ss     Daftar akun"
@@ -247,17 +241,17 @@ echo -e "  ${COLOR1}DELETE${NC}/{protokol}/{username}               Hapus akun"
 echo -e "  ${COLOR1}POST  ${NC}/{protokol}/{username}/renew         Perpanjang"
 echo -e "  ${COLOR1}GET   ${NC}/ssh/online           User SSH online"
 echo -e "  ${COLOR1}GET   ${NC}/keys                 Daftar API key"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${WH}Contoh membuat akun VMess${NC}"
+ui_card_end
+ui_card_start
+ui_line "${WH}Contoh membuat akun VMess${NC}"
 echo -e "  ${WH}curl -X POST https://$domain/api/vmess \\"
 echo -e "    -H \"X-API-Key: KEY_ANDA\" \\"
 echo -e "    -H \"Content-Type: application/json\" \\"
 echo -e "    -d '{\"username\":\"budi\",\"expired\":30}'${NC}"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_card_end
 footer
 echo ""
-read -n 1 -s -r -p "  Press any key to back on menu"
+ui_pause
 menu-api
 }
 
@@ -266,23 +260,18 @@ keycount=$(apicall count 2>/dev/null)
 [ -z "$keycount" ] && keycount=0
 
 header
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${WH}Service    ${COLOR1}: ${WH}[${status_api}${WH}]${NC}"
-echo -e "$COLOR1 ${NC} ${WH}Active Key ${COLOR1}: ${WH}$keycount${NC}"
-echo -e "$COLOR1 ${NC} ${WH}Base URL   ${COLOR1}: ${WH}https://$domain/api${NC}"
-echo -e "$COLOR1 ${NC} ${WH}Docs       ${COLOR1}: ${WH}https://$domain/docs/${NC}"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e " $COLOR1┌───────────────────────────────────────────────┐${NC}
- $COLOR1 $NC   ${WH}[${COLOR1}01${WH}]${NC} ${COLOR1}• ${WH}GENERATE API KEY   ${WH}[${COLOR1}05${WH}]${NC} ${COLOR1}• ${WH}RESTART API${NC}  $COLOR1 $NC
- $COLOR1 $NC   ${WH}[${COLOR1}02${WH}]${NC} ${COLOR1}• ${WH}LIST API KEY       ${WH}[${COLOR1}06${WH}]${NC} ${COLOR1}• ${WH}TEST API${NC}     $COLOR1 $NC
- $COLOR1 $NC   ${WH}[${COLOR1}03${WH}]${NC} ${COLOR1}• ${WH}REVOKE API KEY     ${WH}[${COLOR1}07${WH}]${NC} ${COLOR1}• ${WH}API INFO${NC}     $COLOR1 $NC
- $COLOR1 $NC   ${WH}[${COLOR1}04${WH}]${NC} ${COLOR1}• ${WH}DELETE API KEY${NC}                       $COLOR1 $NC
- $COLOR1 $NC                                              ${NC} $COLOR1 $NC
- $COLOR1 $NC   ${WH}[${COLOR1}00${WH}]${NC} ${COLOR1}• ${WH}GO BACK${NC}                              $COLOR1 $NC"
-echo -e " $COLOR1└───────────────────────────────────────────────┘${NC}"
-footer
-echo -e ""
-echo -ne " ${WH}Select menu ${COLOR1}: ${WH}"; read opt
+ui_card_start
+ui_kv "Service" "[${status_api}${NC}]"
+ui_kv "Active keys" "$keycount"
+ui_kv "Base URL" "https://$domain/api"
+ui_kv "Docs" "https://$domain/docs/"
+ui_card_end
+ui_card_start
+ui_options "01:Generate API key" "05:Restart API" "02:List API keys" "06:Test API" "03:Revoke API key" "07:API info" "04:Delete API key"
+ui_card_end
+ui_back_hint
+ui_prompt
+read -r opt
 case $opt in
 01 | 1) clear ; genkey ;;
 02 | 2) clear ; listkey ;;
@@ -291,6 +280,6 @@ case $opt in
 05 | 5) clear ; apirestart ;;
 06 | 6) clear ; apitest ;;
 07 | 7) clear ; apiinfo ;;
-00 | 0) clear ; menu ;;
+00 | 0 | x | X) clear ; menu ;;
 *) clear ; menu-api ;;
 esac

@@ -1,51 +1,41 @@
 #!/bin/bash
-dateFromServer=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
-biji=`date +"%Y-%m-%d" -d "$dateFromServer"`
-###########- COLOR CODE -##############
-colornow=$(cat /etc/yudhynetwork/theme/color.conf)
-NC="\e[0m"
-RED="\033[0;31m" 
-COLOR1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "TEXT" | cut -d: -f2|sed 's/ //g')"
-COLBG1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "BG" | cut -d: -f2|sed 's/ //g')" 
-WH='\033[1;37m'         
+UI_LIB=/usr/local/lib/katsutun/ui.sh
+[ -r "$UI_LIB" ] || { echo "KatsuTun UI library is missing. Run: katsu-update apply --force"; exit 1; }
+# shellcheck source=data/katsu-ui.sh
+. "$UI_LIB"
+ui_init
+red="$UI_BAD"; green="$UI_GOOD"; yell="$UI_WARN"; tyblue="$UI_ACCENT"
+# Legacy palette names used by the screens below now map onto the shared theme.
+NC="$UI_RESET"; RED="$UI_BAD"; GREEN="$UI_GOOD"; YELLOW="$UI_WARN"
+COLOR1="$UI_ACCENT"; COLBG1="$UI_BAR"; WH="$UI_TEXT"
 ###########- Yudhy network -##########
 
 function addssws(){
 clear
 domain=$(cat /etc/xray/domain)
 
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}             ${WH}• CREATE SSWS USER •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "CREATE SSWS USER"
+ui_card_start
 tls="$(cat ~/log-install.txt | grep -w "Websocket Shadowsocks" | cut -d: -f2|sed 's/ //g')"
 until [[ $user =~ ^[a-zA-Z0-9_]+$ && ${CLIENT_EXISTS} == '0' ]]; do
 read -rp "   Input Username : " -e user
 if [ -z $user ]; then
-echo -e "$COLOR1 ${NC} [Error] Username cannot be empty "
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_line "[Error] Username cannot be empty "
+ui_card_end
 echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu
 fi
 CLIENT_EXISTS=$(grep -w $user /etc/xray/config.json | wc -l)
 
 if [[ ${CLIENT_EXISTS} == '1' ]]; then
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}             ${WH}• CREATE SSWS USER •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} Please choose another name."
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_title "CREATE SSWS USER"
+ui_card_start
+ui_line "Please choose another name."
+ui_card_end
 echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ss
 		fi
 	done
@@ -69,7 +59,7 @@ rm -rf /tmp/log
 rm -rf /tmp/log1
 cat > /home/vps/public_html/ss-ws/ss-$user.txt <<-END
 # sodosok ws
-{ 
+{
  "dns": {
     "servers": [
       "8.8.8.8",
@@ -174,7 +164,7 @@ cat > /home/vps/public_html/ss-ws/ss-$user.txt <<-END
   },
   "stats": {}
  }
- 
+
  # SODOSOK grpc
 
 
@@ -285,68 +275,53 @@ END
 systemctl restart xray > /dev/null 2>&1
 service cron restart > /dev/null 2>&1
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}             ${WH}• CREATE SSWS USER •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${WH}Remarks     ${COLOR1}: ${WH}${user}" 
-echo -e "$COLOR1 ${NC} ${WH}Expired On  ${COLOR1}: ${WH}$exp"  
-echo -e "$COLOR1 ${NC} ${WH}Domain      ${COLOR1}: ${WH}${domain}"  
-echo -e "$COLOR1 ${NC} ${WH}Port TLS    ${COLOR1}: ${WH}${tls}"  
-echo -e "$COLOR1 ${NC} ${WH}Port  GRPC  ${COLOR1}: ${WH}${tls}" 
-echo -e "$COLOR1 ${NC} ${WH}Password    ${COLOR1}: ${WH}${uuid}"  
-echo -e "$COLOR1 ${NC} ${WH}Cipers      ${COLOR1}: ${WH}aes-128-gcm"  
-echo -e "$COLOR1 ${NC} ${WH}Network     ${COLOR1}: ${WH}ws/grpc"  
-echo -e "$COLOR1 ${NC} ${WH}Path        ${COLOR1}: ${WH}/ss-ws"  
-echo -e "$COLOR1 ${NC} ${WH}ServiceName ${COLOR1}: ${WH}ss-grpc"  
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${WH}Link TLS ${COLOR1}: ${NC}"
-echo -e "$COLOR1 ${NC} ${shadowsockslink}"  
-echo -e "$COLOR1 ${NC} "
-echo -e "$COLOR1 ${NC} ${WH}Link GRPC ${COLOR1}: ${NC}"
-echo -e "$COLOR1 ${NC} ${shadowsockslink1}"  
-echo -e "$COLOR1 ${NC} "
-echo -e "$COLOR1 ${NC} Link JSON : http://${domain}:81/ss-ws/ss-$user.txt"  
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo ""  
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_title "CREATE SSWS USER"
+ui_card_start
+ui_line "${WH}Remarks     ${COLOR1}: ${WH}${user}"
+ui_line "${WH}Expired On  ${COLOR1}: ${WH}$exp"
+ui_line "${WH}Domain      ${COLOR1}: ${WH}${domain}"
+ui_line "${WH}Port TLS    ${COLOR1}: ${WH}${tls}"
+ui_line "${WH}Port  GRPC  ${COLOR1}: ${WH}${tls}"
+ui_line "${WH}Password    ${COLOR1}: ${WH}${uuid}"
+ui_line "${WH}Cipers      ${COLOR1}: ${WH}aes-128-gcm"
+ui_line "${WH}Network     ${COLOR1}: ${WH}ws/grpc"
+ui_line "${WH}Path        ${COLOR1}: ${WH}/ss-ws"
+ui_line "${WH}ServiceName ${COLOR1}: ${WH}ss-grpc"
+ui_card_end
+ui_card_start
+ui_line "${WH}Link TLS ${COLOR1}: ${NC}"
+ui_line "${shadowsockslink}"
+ui_blank
+ui_line "${WH}Link GRPC ${COLOR1}: ${NC}"
+ui_line "${shadowsockslink1}"
+ui_blank
+ui_line "Link JSON : http://${domain}:81/ss-ws/ss-$user.txt"
+ui_card_end
+echo ""
+ui_pause
 menu-ss
 }
 
 function renewssws(){
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}              ${WH}• RENEW SSWS USER •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "RENEW SSWS USER"
+ui_card_start
 NUMBER_OF_CLIENTS=$(grep -c -E "^## " "/etc/xray/config.json")
 if [[ ${NUMBER_OF_CLIENTS} == '0' ]]; then
-echo -e "$COLOR1 ${NC}  • You have no existing clients!"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_line "• You have no existing clients!"
+ui_card_end
 echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ss
 fi
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}              ${WH}• RENEW SSWS USER •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "RENEW SSWS USER"
+ui_card_start
 grep -E "^## " "/etc/xray/config.json" | cut -d ' ' -f 2-3 | column -t | sort | uniq | nl
-echo -e "$COLOR1 ${NC}"
-echo -e "$COLOR1 ${NC}  ${COLOR1}• ${WH}[${COLOR1}NOTE${WH}] Press any key to back on menu"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1───────────────────────────────────────────────────${NC}"
+ui_blank
+ui_line "${COLOR1}• ${WH}[${COLOR1}NOTE${WH}] Press any key to back on menu"
+ui_card_end
+ui_divider
 read -rp "   Input Username : " user
 if [ -z $user ]; then
 menu-ss
@@ -365,21 +340,16 @@ exp4=`date -d "$exp3 days" +"%Y-%m-%d"`
 sed -i "/## $user/c\## $user $exp4" /etc/xray/config.json
 systemctl restart xray > /dev/null 2>&1
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}              ${WH}• RENEW SSWS USER •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}   ${WH}[${COLOR1}INFO${WH}]${NC}  ${WH}$user Account Renewed Successfully"
-echo -e "$COLOR1 ${NC}   "
-echo -e "$COLOR1 ${NC}   ${WH}Client Name ${COLOR1}: ${WH}$user"
-echo -e "$COLOR1 ${NC}   ${WH}Days Added  ${COLOR1}: ${WH}$masaaktif Days"
-echo -e "$COLOR1 ${NC}   ${WH}Expired On  ${COLOR1}: ${WH}$exp4"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_title "RENEW SSWS USER"
+ui_card_start
+ui_line "${WH}[${COLOR1}INFO${WH}]${NC}  ${WH}$user Account Renewed Successfully"
+ui_blank
+ui_line "${WH}Client Name ${COLOR1}: ${WH}$user"
+ui_line "${WH}Days Added  ${COLOR1}: ${WH}$masaaktif Days"
+ui_line "${WH}Expired On  ${COLOR1}: ${WH}$exp4"
+ui_card_end
 echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ss
 fi
 }
@@ -388,29 +358,22 @@ function delssws(){
     clear
 NUMBER_OF_CLIENTS=$(grep -c -E "^## " "/etc/xray/config.json")
 if [[ ${NUMBER_OF_CLIENTS} == '0' ]]; then
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}           ${WH}• DELETE TROJAN USER •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}  ${COLOR1}• ${WH}You Dont have any existing clients!${NC}"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_title "DELETE TROJAN USER"
+ui_card_start
+ui_line "${COLOR1}• ${WH}You Dont have any existing clients!${NC}"
+ui_card_end
 echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ss
 fi
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}           ${WH}• DELETE TROJAN USER •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "DELETE TROJAN USER"
+ui_card_start
 grep -E "^## " "/etc/xray/config.json" | cut -d ' ' -f 2-3 | column -t | sort | uniq | nl
-echo -e "$COLOR1 ${NC}"
-echo -e "$COLOR1 ${NC}  ${COLOR1}• ${WH}[${COLOR1}NOTE${WH}]${NC} ${WH}Press any key to back on menu${NC}"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1───────────────────────────────────────────────────${NC}"
+ui_blank
+ui_line "${COLOR1}• ${WH}[${COLOR1}NOTE${WH}]${NC} ${WH}Press any key to back on menu${NC}"
+ui_card_end
+ui_divider
 read -rp "   Input Username : " user
 if [ -z $user ]; then
 menu-ss
@@ -420,20 +383,15 @@ sed -i "/^## $user $exp/,/^},{/d" /etc/xray/config.json
 systemctl restart xray > /dev/null 2>&1
 rm /home/vps/public_html/ss-ws/ss-$user.txt
 clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}           ${WH}• DELETE TROJAN USER •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}   ${COLOR1}• ${WH}Accound Delete Successfully"
-echo -e "$COLOR1 ${NC}"
-echo -e "$COLOR1 ${NC}   ${COLOR1}• ${WH}Client Name ${COLOR1}: ${WH}$user${NC}"
-echo -e "$COLOR1 ${NC}   ${COLOR1}• ${WH}Expired On  ${COLOR1}: ${WH}$exp${NC}"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_title "DELETE TROJAN USER"
+ui_card_start
+ui_line "${COLOR1}• ${WH}Accound Delete Successfully"
+ui_blank
+ui_line "${COLOR1}• ${WH}Client Name ${COLOR1}: ${WH}$user${NC}"
+ui_line "${COLOR1}• ${WH}Expired On  ${COLOR1}: ${WH}$exp${NC}"
+ui_card_end
 echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ss
 fi
 }
@@ -442,10 +400,8 @@ function cekssws(){
 clear
 echo -n > /tmp/other.txt
 data=( `cat /etc/xray/config.json | grep '^##' | cut -d ' ' -f 2 | sort | uniq`);
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}             ${WH}• SSWS USER ONLINE •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
+ui_title "SSWS USER ONLINE"
+ui_card_start
 
 for akun in "${data[@]}"
 do
@@ -473,42 +429,31 @@ if [[ -z "$jum" ]]; then
 echo > /dev/null
 else
 jum2=$(cat /tmp/ipssws.txt | nl)
-echo -e "$COLOR1 ${NC}   user : $akun";
+ui_line "user : $akun";
 echo -e "$COLOR1${NC}$jum2";
 fi
 rm -rf /tmp/ipssws.txt
 done
 
 rm -rf /tmp/other.txt
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}" 
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
+ui_card_end
 echo ""
-read -n 1 -s -r -p "   Press any key to back on menu"
+ui_pause
 menu-ss
 }
 
-clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}              ${WH}• SSWS PANEL MENU •              ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e " $COLOR1┌───────────────────────────────────────────────┐${NC}"
-echo -e " $COLOR1 $NC   ${WH}[${COLOR1}01${WH}]${NC} ${COLOR1}• ${WH}ADD SSWS${NC}      ${WH}[${COLOR1}03${WH}]${NC} ${COLOR1}• ${WH}DELETE SSWS${NC}     $COLOR1 $NC"
-echo -e " $COLOR1 $NC   ${WH}[${COLOR1}02${WH}]${NC} ${COLOR1}• ${WH}RENEW SSWS${NC}    ${WH}[${COLOR1}04${WH}]${NC} ${COLOR1}• ${WH}USER ONLINE${NC}     $COLOR1 $NC"
-echo -e " $COLOR1 $NC                                              ${NC} $COLOR1 $NC"
-echo -e " $COLOR1 $NC   ${WH}[${COLOR1}00${WH}]${NC} ${COLOR1}• ${WH}GO BACK${NC}                              $COLOR1 $NC"
-echo -e " $COLOR1└───────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e ""
-echo -ne " ${WH}Select menu ${COLOR1}: ${WH}"; read opt
+ui_screen "SHADOWSOCKS" "Xray accounts"
+ui_card_start
+ui_options "01:Add account" "03:Delete account" "02:Renew account" "04:Online users"
+ui_card_end
+ui_back_hint
+ui_prompt
+read -r opt
 case $opt in
 01 | 1) clear ; addssws ;;
 02 | 2) clear ; renewssws ;;
 03 | 3) clear ; delssws ;;
 04 | 4) clear ; cekssws ;;
-00 | 0) clear ; menu ;;
+00 | 0 | x | X) clear ; menu ;;
 *) clear ; menu-ss ;;
 esac

@@ -4,15 +4,15 @@
 [ -r /etc/katsutun/repo.conf ] || katsu-update status >/dev/null 2>&1
 # shellcheck source=data/repo.conf
 . /etc/katsutun/repo.conf
-dateFromServer=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
-biji=`date +"%Y-%m-%d" -d "$dateFromServer"`
-###########- COLOR CODE -##############
-colornow=$(cat /etc/yudhynetwork/theme/color.conf)
-NC="\e[0m"
-RED="\033[0;31m" 
-COLOR1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "TEXT" | cut -d: -f2|sed 's/ //g')"
-COLBG1="$(cat /etc/yudhynetwork/theme/$colornow | grep -w "BG" | cut -d: -f2|sed 's/ //g')"  
-WH='\033[1;37m'                  
+UI_LIB=/usr/local/lib/katsutun/ui.sh
+[ -r "$UI_LIB" ] || { echo "KatsuTun UI library is missing. Run: katsu-update apply --force"; exit 1; }
+# shellcheck source=data/katsu-ui.sh
+. "$UI_LIB"
+ui_init
+red="$UI_BAD"; green="$UI_GOOD"; yell="$UI_WARN"; tyblue="$UI_ACCENT"
+# Legacy palette names used by the screens below now map onto the shared theme.
+NC="$UI_RESET"; RED="$UI_BAD"; GREEN="$UI_GOOD"; YELLOW="$UI_WARN"
+COLOR1="$UI_ACCENT"; COLBG1="$UI_BAR"; WH="$UI_TEXT"
 ###########- KatsuTun -##########
 
 infos() {
@@ -44,28 +44,17 @@ Report errors at $ISSUES_URL
 Thank you for using this script
 ===================================================================================="
 echo ""
-read -p "Press enter to go back" -n 1; menu-backup
+ui_pause; menu-backup
 }
 
 
-clear
-echo -e "$COLOR1┌─────────────────────────────────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC} ${COLBG1}             ${WH}• BACKUP PANEL MENU •             ${NC} $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e " $COLOR1┌───────────────────────────────────────────────┐${NC}"
-echo -e " $COLOR1 $NC   ${WH}[${COLOR1}01${WH}]${NC} ${COLOR1}• ${WH}AUTO BACKUP      ${WH}[${COLOR1}03${WH}]${NC} ${COLOR1}• ${WH}RESTORE    $COLOR1 $NC"
-echo -e " $COLOR1 $NC   ${WH}[${COLOR1}02${WH}]${NC} ${COLOR1}• ${WH}BACKUP           ${WH}[${COLOR1}04${WH}]${NC} ${COLOR1}• ${WH}BACKUP SETTINGS    $COLOR1 $NC"
-echo -e " $COLOR1 $NC                                               $COLOR1 $NC"
-echo -e " $COLOR1 $NC   ${WH}[${COLOR1}05${WH}]${NC} ${COLOR1}• ${WH}TUTORIAL ON HOW TO USE"
-echo -e " $COLOR1 $NC   ${WH}[${COLOR1}06${WH}]${NC} ${COLOR1}• ${WH}INSTALL DEPENDENCIES"
-echo -e " $COLOR1 $NC                                               $COLOR1 $NC"
-echo -e " $COLOR1 $NC   ${WH}[${COLOR1}00${WH}]${NC} ${COLOR1}• ${WH}GO BACK${NC}                              $COLOR1 $NC"
-echo -e " $COLOR1└───────────────────────────────────────────────┘${NC}"
-echo -e "$COLOR1┌────────────────────── ${WH}BY${NC} ${COLOR1}───────────────────────┐${NC}"
-echo -e "$COLOR1 ${NC}                 ${WH}•  KatsuTun  •${NC}                 $COLOR1 $NC"
-echo -e "$COLOR1└─────────────────────────────────────────────────┘${NC}"
-echo -e ""
-echo -ne " ${WH}Select menu ${COLOR1}: ${WH}"; read opt
+ui_screen "BACKUP & RESTORE" "encrypted archive to your own storage"
+ui_card_start
+ui_options "01:Auto backup" "03:Restore" "02:Backup now" "04:Backup settings" "05:How to use" "06:Install dependencies"
+ui_card_end
+ui_back_hint
+ui_prompt
+read -r opt
 case $opt in
 01 | 1) clear ; autobackup ;;
 02 | 2) clear ; backup ;;
@@ -73,6 +62,6 @@ case $opt in
 04 | 4) clear ; backup_setting ;;
 05 | 5) clear ; infos ;;
 06 | 6) clear ; bash /etc/lukman/dependencies.sh ; menu-backup ;;
-00 | 0) clear ; menu ;;
+00 | 0 | x | X) clear ; menu ;;
 *) clear ; menu-backup ;;
 esac
