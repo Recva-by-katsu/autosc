@@ -30,11 +30,11 @@ ui_init() {
 }
 
 ui_clear() { clear; }
-ui_line() { printf '%b%s%s%b\n' "$UI_ACCENT" "$UI_V" "  $*" "$UI_RESET"; }
-ui_edge() { printf '%b%s%s%s%b\n' "$UI_ACCENT" "$1" "$(printf '%*s' 57 '' | tr ' ' "$UI_H")" "$2" "$UI_RESET"; }
+ui_line() { printf '%b%b%b%b\n' "$UI_ACCENT" "$UI_V" "  $*" "$UI_RESET"; }
+ui_edge() { printf '%b%b%b%b%b\n' "$UI_ACCENT" "$1" "$(printf '%*s' 57 '' | tr ' ' "$UI_H")" "$2" "$UI_RESET"; }
 ui_top() { ui_edge "$UI_TL" "$UI_TR"; }
 ui_bottom() { ui_edge "$UI_BL" "$UI_BR"; }
-ui_divider() { printf '%b%s%s%s%b\n' "$UI_ACCENT" "$UI_V" "$(printf '%*s' 57 '' | tr ' ' "$UI_H")" "$UI_V" "$UI_RESET"; }
+ui_divider() { printf '%b%b%b%b%b\n' "$UI_ACCENT" "$UI_V" "$(printf '%*s' 57 '' | tr ' ' "$UI_H")" "$UI_V" "$UI_RESET"; }
 ui_blank() { ui_line ''; }
 
 ui_header() {
@@ -50,12 +50,12 @@ ui_card_end() { ui_bottom; }
 ui_kv() { ui_line "${UI_MUTED}  $1${UI_RESET}  ${UI_TEXT}$2${UI_RESET}"; }
 ui_notice() { ui_line "${UI_ACCENT}  $1${UI_RESET}"; }
 ui_menu_pair() {
-    printf '%b%s  %b[%02d]%b %-20s %b[%s]%b    %b[%02d]%b %-20s %b[%s]%b  %b%s\n' \
+    printf '%b%b  %b[%02d]%b %-20b %b[%b]%b    %b[%02d]%b %-20b %b[%b]%b  %b%b\n' \
         "$UI_ACCENT" "$UI_V" "$UI_TEXT" "$1" "$UI_RESET" "$2" "$UI_MUTED" "$3" "$UI_RESET" \
         "$UI_TEXT" "$4" "$UI_RESET" "$5" "$UI_MUTED" "$6" "$UI_RESET" "$UI_ACCENT" "$UI_RESET"
 }
 ui_menu_item() {
-    printf '%b%s  %b[%02d]%b %-20s %b[%s]%b%b\n' \
+    printf '%b%b  %b[%02d]%b %-20b %b[%b]%b%b\n' \
         "$UI_ACCENT" "$UI_V" "$UI_TEXT" "$1" "$UI_RESET" "$2" "$UI_MUTED" "$3" "$UI_RESET" "$UI_RESET"
 }
 ui_footer() {
