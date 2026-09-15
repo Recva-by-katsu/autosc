@@ -154,37 +154,37 @@ clear
 
 ############# KatsuTun #############
 #THEME RED
-cat <<EOF>> /etc/yudhynetwork/theme/red
+cat <<EOF> /etc/yudhynetwork/theme/red
 BG : \E[40;1;41m
 TEXT : \033[0;31m
 EOF
 #THEME BLUE
-cat <<EOF>> /etc/yudhynetwork/theme/blue
+cat <<EOF> /etc/yudhynetwork/theme/blue
 BG : \E[40;1;44m
 TEXT : \033[0;34m
 EOF
 #THEME GREEN
-cat <<EOF>> /etc/yudhynetwork/theme/green
+cat <<EOF> /etc/yudhynetwork/theme/green
 BG : \E[40;1;42m
 TEXT : \033[0;32m
 EOF
 #THEME YELLOW
-cat <<EOF>> /etc/yudhynetwork/theme/yellow
+cat <<EOF> /etc/yudhynetwork/theme/yellow
 BG : \E[40;1;43m
 TEXT : \033[0;33m
 EOF
 #THEME MAGENTA
-cat <<EOF>> /etc/yudhynetwork/theme/magenta
-BG : \E[40;1;43m
-TEXT : \033[0;33m
+cat <<EOF> /etc/yudhynetwork/theme/magenta
+BG : \E[40;1;45m
+TEXT : \033[0;35m
 EOF
 #THEME CYAN
-cat <<EOF>> /etc/yudhynetwork/theme/cyan
+cat <<EOF> /etc/yudhynetwork/theme/cyan
 BG : \E[40;1;46m
 TEXT : \033[0;36m
 EOF
 #THEME CONFIG
-cat <<EOF>> /etc/yudhynetwork/theme/color.conf
+cat <<EOF> /etc/yudhynetwork/theme/color.conf
 blue
 EOF
 ############# KatsuTun #############
