@@ -271,17 +271,9 @@ ui_line "${WH}Network       ${COLOR1}: ${WH}ws"  | tee -a /etc/log-create-user.l
 ui_line "${WH}Path          ${COLOR1}: ${WH}/vmess-(custom path) " | tee -a /etc/log-create-user.log
 ui_line "${WH}ServiceName   ${COLOR1}: ${WH}vmess-grpc"  | tee -a /etc/log-create-user.log
 ui_card_end  | tee -a /etc/log-create-user.log
-ui_card_start | tee -a /etc/log-create-user.log
-ui_line "${COLOR1}Link Websocket TLS      ${WH}:${NC}" | tee -a /etc/log-create-user.log
-ui_line "${WH}${vmesslink1}${NC}"  | tee -a /etc/log-create-user.log
-ui_divider | tee -a /etc/log-create-user.log
-ui_line "${COLOR1}Link Websocket None TLS ${WH}: ${NC}" | tee -a /etc/log-create-user.log
-ui_line "${WH}${vmesslink2}${NC}"  | tee -a /etc/log-create-user.log
-ui_divider | tee -a /etc/log-create-user.log
-ui_line "${COLOR1}Link Websocket GRPC     ${WH}: ${NC}" | tee -a /etc/log-create-user.log
-ui_line "${WH}${vmesslink3}${NC}"  | tee -a /etc/log-create-user.log
-ui_divider | tee -a /etc/log-create-user.log
-ui_card_end  | tee -a /etc/log-create-user.log
+ui_copy "Link WebSocket TLS" "$vmesslink1" | tee -a /etc/log-create-user.log
+ui_copy "Link WebSocket non-TLS" "$vmesslink2" | tee -a /etc/log-create-user.log
+ui_copy "Link gRPC" "$vmesslink3" | tee -a /etc/log-create-user.log
 echo "" | tee -a /etc/log-create-user.log
 
 ui_pause

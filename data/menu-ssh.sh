@@ -126,11 +126,7 @@ ui_kv "SSH-SSL-WS" "$wsssl"  | tee -a /etc/log-create-user.log
 ui_kv "SSL/TLS" "$ssl"  | tee -a /etc/log-create-user.log
 ui_kv "UDPGW" "7100-7300"  | tee -a /etc/log-create-user.log
 ui_card_end | tee -a /etc/log-create-user.log
-ui_card_start | tee -a /etc/log-create-user.log
-echo -e "${WH}GET http://bug.com HTTP/1.1${NC}" | tee -a /etc/log-create-user.log
-echo -e "${WH}Host: $domen ${NC}" | tee -a /etc/log-create-user.log
-echo -e "${WH}Upgrade: websocket[crlf][crlf]${NC}" | tee -a /etc/log-create-user.log
-ui_card_end  | tee -a /etc/log-create-user.log
+ui_copy "Payload WebSocket" "GET http://bug.com HTTP/1.1[crlf]Host: $domen[crlf]Upgrade: websocket[crlf][crlf]" | tee -a /etc/log-create-user.log
 else
 ui_title "SSH PANEL MENU" | tee -a /etc/log-create-user.log
 ui_card_start | tee -a /etc/log-create-user.log
@@ -148,11 +144,7 @@ ui_kv "SSH-SSL-WS" "$wsssl"  | tee -a /etc/log-create-user.log
 ui_kv "SSL/TLS" "$ssl"  | tee -a /etc/log-create-user.log
 ui_kv "UDPGW" "7100-7300"  | tee -a /etc/log-create-user.log
 ui_card_end | tee -a /etc/log-create-user.log
-ui_card_start | tee -a /etc/log-create-user.log
-echo -e "${WH}GET http://bug.com HTTP/1.1${NC}" | tee -a /etc/log-create-user.log
-echo -e "${WH}Host: $domen ${NC}" | tee -a /etc/log-create-user.log
-echo -e "${WH}Upgrade: websocket[crlf][crlf]${NC}" | tee -a /etc/log-create-user.log
-ui_card_end  | tee -a /etc/log-create-user.log
+ui_copy "Payload WebSocket" "GET http://bug.com HTTP/1.1[crlf]Host: $domen[crlf]Upgrade: websocket[crlf][crlf]" | tee -a /etc/log-create-user.log
 fi
 echo -e ""
 ui_pause
@@ -487,9 +479,7 @@ ui_line "${WH}SSH-SSL-WS ${COLOR1}: ${WH}$wsssl"
 ui_line "${WH}SSL/TLS    ${COLOR1}:${WH}$ssl"
 ui_line "${WH}UDPGW      ${COLOR1}: ${WH}7100-7300"
 ui_card_end
-ui_card_start
-ui_line "${WH}GET http://bug.com HTTP/1.1[crlf]Host: $domen [crlf]User-Agent: [ua][crlf]Upgrade: websocket[crlf][crlf]Connection: Keep-Alive[crlf][crlf]${NC}"
-ui_card_end
+ui_copy "Payload WebSocket" "GET http://bug.com HTTP/1.1[crlf]Host: $domen [crlf]User-Agent: [ua][crlf]Upgrade: websocket[crlf][crlf]Connection: Keep-Alive[crlf][crlf]"
 fi
 echo ""
 ui_pause

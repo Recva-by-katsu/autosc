@@ -78,6 +78,22 @@ ui_prompt
             framed = [l for l in text.splitlines() if l.startswith("│") or l.startswith("╭") or l.startswith("╰")]
             self.assertEqual({len(l) for l in framed}, {min(columns, 60)}, text)
 
+    def test_copyable_values_are_never_clipped(self):
+        link = "vmess://" + "A" * 400
+        text = self.render('ui_copy "Link WebSocket TLS" "%s"' % link, "C.UTF-8", columns=40)
+        self.assertIn(link, text)
+        self.assertNotIn("~", text)
+
+    def test_share_links_use_ui_copy(self):
+        # Framed rows are clipped to the terminal width, so every share link
+        # and payload must go through ui_copy or customers get a broken link.
+        import re as _re
+        for name in ("menu-vmess", "menu-vless", "menu-trojan", "menu-ss", "menu-ssh"):
+            src = (ROOT / f"data/{name}.sh").read_text()
+            bad = [l for l in src.splitlines()
+                   if l.startswith("ui_line") and _re.search(r"\$\{?\w*link\w*\}?|GET http://bug\.com", l)]
+            self.assertEqual(bad, [], f"{name}: links rendered inside a clipped frame")
+
     def test_long_values_are_clipped_not_wrapped(self):
         text = self.render('ui_card_start; ui_kv URL "https://example.com/' + "x" * 200 + '"; ui_card_end', "C.UTF-8")
         for line in text.splitlines():

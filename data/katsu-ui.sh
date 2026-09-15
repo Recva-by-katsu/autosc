@@ -134,6 +134,10 @@ ui_options() {  # ui_options "NN:Label[:note]" ... : two columns when the frame 
 ui_menu_pair() { ui_options "$1:$2:$3" "$4:$5:$6"; }
 ui_menu_item() { ui_line "$(ui_option "$1" "$2" "$3")"; }
 
+ui_copy() {  # ui_copy LABEL VALUE : full-width value meant to be copied (never clipped)
+    printf '%b%s%b\n' "$UI_LABEL" "$1" "$UI_RESET"
+    printf '%b%s%b\n\n' "$UI_TEXT" "$2" "$UI_RESET"
+}
 ui_footer() { printf '  %b%s %s %s %s%b\n' "$UI_MUTED" "$(ui_repeat "$UI_H" 3)" "${BRAND:-KatsuTun}" "$UI_DOT" "$(date '+%d %b %Y %H:%M')" "$UI_RESET"; }
 ui_back_hint() { printf '  %b[00]%b %bBack%b   %b[x]%b %bExit%b\n' "$UI_LABEL" "$UI_RESET" "$UI_MUTED" "$UI_RESET" "$UI_LABEL" "$UI_RESET" "$UI_MUTED" "$UI_RESET"; }
 ui_prompt() { printf '\n%b%s%b %b%s%b ' "$UI_ACCENT" "$UI_ARROW" "$UI_RESET" "$UI_TEXT" "${1:-Select an option:}" "$UI_RESET"; }
