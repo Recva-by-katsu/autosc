@@ -26,61 +26,148 @@ mkdir -p /etc/xray
 echo -e "[ ${green}INFO${NC} ] Checking... "
 apt install iptables iptables-persistent -y
 sleep 1
+# ntpdate/chronyd tidak selalu ada di Ubuntu 22.04 (defaultnya chrony, tanpa
+# alias chronyd.service). Hanya dipanggil bila binary/unit-nya benar-benar ada
+# supaya baris "Failed to enable unit: chronyd.service" tidak muncul.
 echo -e "[ ${green}INFO$NC ] Setting ntpdate"
-ntpdate pool.ntp.org 
-timedatectl set-ntp true
+if command -v ntpdate >/dev/null 2>&1; then
+    ntpdate pool.ntp.org || true
+fi
+timedatectl set-ntp true || true
 sleep 1
-echo -e "[ ${green}INFO$NC ] Enable chronyd"
-systemctl enable chronyd
-systemctl restart chronyd
-sleep 1
-echo -e "[ ${green}INFO$NC ] Enable chrony"
-systemctl enable chrony
-systemctl restart chrony
-timedatectl set-timezone Asia/Jakarta
-sleep 1
-echo -e "[ ${green}INFO$NC ] Setting chrony tracking"
-chronyc sourcestats -v
-chronyc tracking -v
 echo -e "[ ${green}INFO$NC ] Setting dll"
 apt clean all && apt update
 apt install curl socat xz-utils wget apt-transport-https gnupg gnupg2 gnupg1 dnsutils lsb-release -y 
 apt install socat cron bash-completion ntpdate -y
-ntpdate pool.ntp.org
-apt -y install chrony
-apt install zip -y
+apt install zip unzip -y
 apt install curl pwgen openssl netcat cron -y
+echo -e "[ ${green}INFO$NC ] Enable chrony"
+apt -y install chrony
+# Pakai unit asli (chrony), bukan alias chronyd.service yang tidak ada.
+if systemctl enable --now chrony 2>/dev/null; then
+    echo -e "[ ${green}ok${NC} ] chrony enabled & running"
+else
+    echo -e "[ ${yell}WARN${NC} ] chrony tidak bisa di-enable; time sync (NTP) dilewati."
+fi
+timedatectl set-timezone Asia/Jakarta || true
+sleep 1
+echo -e "[ ${green}INFO$NC ] Setting chrony tracking"
+if command -v chronyc >/dev/null 2>&1; then
+    chronyc sourcestats -v || true
+    chronyc tracking -v || true
+fi
 
 
 # install xray
 sleep 1
 echo -e "[ ${green}INFO$NC ] Downloading & Installing xray core"
-domainSock_dir="/run/xray";! [ -d $domainSock_dir ] && mkdir  $domainSock_dir
-chown www-data.www-data $domainSock_dir
+
+# --- Satu sumber kebenaran untuk versi Xray core -----------------------------
+# VERSION boleh dipaksa dari environment (mis. VERSION=1.8.7 ./ins-xray.sh).
+# Kalau tidak, ambil rilis stabil terbaru dari GitHub API; bila API tidak bisa
+# dihubungi, pakai pin fallback. Semua langkah di bawah memakai nilai yang sama,
+# dan nilai inilah yang ditampilkan di log.
+XRAY_VERSION_FALLBACK="1.8.7"
+VERSION="${VERSION:-}"
+if [ -z "$VERSION" ]; then
+    VERSION="$(curl -fsSL --retry 3 https://api.github.com/repos/XTLS/Xray-core/releases/latest 2>/dev/null \
+        | grep -oE '"tag_name":[[:space:]]*"v[0-9]+\.[0-9]+\.[0-9]+"' \
+        | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)"
+fi
+# Buang prefix "v" dan spasi/CR (mis. respons HTTP yang tidak terduga).
+VERSION="${VERSION#v}"
+VERSION="$(printf '%s' "$VERSION" | tr -d '[:space:]')"
+if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    VERSION="$XRAY_VERSION_FALLBACK"
+fi
+echo -e "[ ${green}INFO${NC} ] Xray core version: $VERSION"
+
+# --- Direktori & permission (service berjalan sebagai www-data) --------------
+domainSock_dir="/run/xray"
+mkdir -p "$domainSock_dir"
+chown www-data:www-data "$domainSock_dir"
+
 # Make Folder XRay
 mkdir -p /var/log/xray
 mkdir -p /etc/xray
-chown www-data.www-data /var/log/xray
-chmod +x /var/log/xray
-touch /var/log/xray/access.log
-touch /var/log/xray/error.log
-touch /var/log/xray/access2.log
-touch /var/log/xray/error2.log
-# / / Ambil Xray Core Version Terbaru
+mkdir -p /usr/local/share/xray
+chown -R www-data:www-data /var/log/xray
+chmod 755 /var/log/xray
+for logfile in access.log error.log access2.log error2.log; do
+    touch "/var/log/xray/$logfile"
+    chown www-data:www-data "/var/log/xray/$logfile"
+done
 
-# Ambil Xray Core Version Terbaru
-#latest_version="$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | grep tag_name | sed -E 's/.*"v(.*)".*/\1/' | head -n 1)"
-# Ambil versi Xray core terbaru dari GitHub API. Jika API tidak dapat
-# dicapai (misal jaringan VPS terbatas), gunakan fallback stabil.
-latest_version="$(curl -fsSL https://api.github.com/repos/XTLS/Xray-core/releases/latest 2>/dev/null \
-    | grep -oE '"tag_name": "v[0-9]+\.[0-9]+\.[0-9]+"' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)"
-latest_version="${latest_version:-1.8.7}"
-echo -e "[ ${green}INFO${NC} ] Xray core version: $latest_version"
-bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data --version "$latest_version"
-
-if [ ! -x /usr/local/bin/xray ]; then
-    echo -e "[ ${red}ERROR${NC} ] Gagal menginstal Xray core. Cek koneksi VPS ke github.com."
+# --- 1) Installer resmi XTLS/Xray-install -----------------------------------
+# CARA LAMA (rusak):  bash -c "$(curl -L ...)" @ install -u www-data --version "$v"
+#   * "@" itu placeholder $0 gaya `sh -c`, sehingga argumen yang benar-benar
+#     sampai ke installer adalah "@ install -u www-data --version 1.8.7".
+#   * install-release.sh TIDAK punya opsi "-u" (user selalu xray) sehingga
+#     parsernya jatuh ke cabang default: "@: unknown option -- -" lalu exit 1.
+# CARA BARU: simpan installer ke file lalu jalankan dengan argumen yang valid.
+# Opsi --version butuh angka (tanpa "v"), dan tidak boleh digabung dgn -u.
+XRAY_INSTALL_URL="https://github.com/XTLS/Xray-install/raw/main/install-release.sh"
+INSTALLER_OK=0
+if curl -fsSL --retry 3 "$XRAY_INSTALL_URL" -o /tmp/install-release.sh \
+    && [ -s /tmp/install-release.sh ] \
+    && bash -n /tmp/install-release.sh; then
+    if bash /tmp/install-release.sh install --version "$VERSION"; then
+        INSTALLER_OK=1
+    else
+        echo -e "[ ${yell}WARN${NC} ] Installer resmi gagal (exit $?). Lanjut ke unduhan zip rilis."
+    fi
+else
+    echo -e "[ ${yell}WARN${NC} ] Gagal mengunduh install-release.sh dari github.com."
 fi
+
+# --- 2) Fallback: unduh zip rilis langsung -----------------------------------
+if [ "$INSTALLER_OK" -ne 1 ] || [ ! -x /usr/local/bin/xray ]; then
+    echo -e "[ ${yell}INFO${NC} ] Fallback: unduh Xray-linux-64.zip v${VERSION} langsung dari GitHub releases"
+    apt install -y unzip >/dev/null 2>&1 || true
+    xray_tmp="$(mktemp -d)"
+    xray_zip="$xray_tmp/Xray-linux-64.zip"
+    if curl -fL --retry 3 --retry-delay 2 \
+        -o "$xray_zip" \
+        "https://github.com/XTLS/Xray-core/releases/download/v${VERSION}/Xray-linux-64.zip"; then
+        if unzip -oq "$xray_zip" -d "$xray_tmp"; then
+            install -m 755 "$xray_tmp/xray" /usr/local/bin/xray
+            mkdir -p /usr/local/share/xray
+            # geoip.dat/geosite.dat tidak wajib ada di semua rilis -> jangan fatal.
+            for dat in geoip.dat geosite.dat; do
+                if [ -f "$xray_tmp/$dat" ]; then
+                    install -m 644 "$xray_tmp/$dat" "/usr/local/share/xray/$dat"
+                else
+                    echo -e "[ ${yell}WARN${NC} ] $dat tidak ada di dalam zip rilis."
+                fi
+            done
+        else
+            echo -e "[ ${red}ERROR${NC} ] Gagal mengekstrak $xray_zip (file zip rusak?)."
+        fi
+    else
+        echo -e "[ ${red}ERROR${NC} ] Gagal mengunduh https://github.com/XTLS/Xray-core/releases/download/v${VERSION}/Xray-linux-64.zip"
+        echo -e "[ ${red}ERROR${NC} ] Periksa koneksi VPS ke github.com / release-assets.githubusercontent.com."
+    fi
+    rm -rf "$xray_tmp"
+fi
+rm -f /tmp/install-release.sh
+
+# --- 3) Verifikasi wajib: binary harus ada dan bisa jalan --------------------
+# Jangan pernah lanjut membuat/meng-enable xray.service kalau binary tidak ada,
+# karena hasilnya cuma status=203/EXEC dan panel menampilkan XRAY OFFLINE.
+if [ ! -x /usr/local/bin/xray ]; then
+    echo -e "[ ${red}ERROR${NC} ] Instalasi Xray GAGAL: /usr/local/bin/xray tidak ada atau tidak executable."
+    echo -e "[ ${red}ERROR${NC} ] Langkah yang gagal: unduh/install Xray core v${VERSION} (installer resmi maupun zip rilis)."
+    echo -e "[ ${red}ERROR${NC} ] Service xray TIDAK dibuat/di-enable. Cek: curl -I https://github.com"
+    exit 1
+fi
+if ! xray_check="$(/usr/local/bin/xray -version 2>&1)"; then
+    echo -e "[ ${red}ERROR${NC} ] Instalasi Xray GAGAL: /usr/local/bin/xray -version tidak bisa dijalankan."
+    echo -e "[ ${red}ERROR${NC} ] Output: $xray_check"
+    echo -e "[ ${red}ERROR${NC} ] Service xray TIDAK dibuat/di-enable."
+    exit 1
+fi
+installed_version="$(printf '%s\n' "$xray_check" | grep -oE 'Xray [0-9]+\.[0-9]+\.[0-9]+' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)"
+echo -e "[ ${green}ok${NC} ] Xray core terpasang: ${installed_version:-versi tidak terdeteksi} (/usr/local/bin/xray)"
 
 ## crt xray
 #systemctl stop nginx
@@ -130,9 +217,14 @@ if ! issue_cert "$ip_version" || ! ~/.acme.sh/acme.sh --installcert -d "$domain"
     echo -e "[ ${yell}WARN${NC} ] Pastikan domain sudah diarahkan ke IP VPS dan port 80 terbuka."
     echo -e "[ ${yell}WARN${NC} ] Pasang sertifikat self-signed supaya nginx masih bisa nyala."
     mkdir -p /etc/xray
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-        -keyout /etc/xray/xray.key -out /etc/xray/xray.crt \
-        -subj "/CN=$domain" >/dev/null 2>&1 || true
+    # Idempotent: sertifikat yang sudah ada (mis. dari crtxray) jangan ditimpa.
+    if [ -s /etc/xray/xray.crt ] && [ -s /etc/xray/xray.key ]; then
+        echo -e "[ ${green}INFO${NC} ] Sertifikat existing dipertahankan (/etc/xray/xray.crt)."
+    else
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout /etc/xray/xray.key -out /etc/xray/xray.crt \
+            -subj "/CN=$domain" >/dev/null 2>&1 || true
+    fi
 fi
 
 if [ ! -s /etc/xray/xray.crt ] || [ ! -s /etc/xray/xray.key ]; then
@@ -155,8 +247,20 @@ if ! grep -q 'ssl_renew.sh' /var/spool/cron/crontabs/root; then (crontab -l; ech
 mkdir -p /home/vps/public_html
 
 # set uuid
+# Idempotent: saat script dijalankan ulang, pakai kembali UUID dan config yang
+# sudah ada supaya akun pelanggan tidak berubah / config hasil edit tidak hilang.
 uuid=$(cat /proc/sys/kernel/random/uuid)
+if [ -s /etc/xray/config.json ] && grep -q '"inbounds"' /etc/xray/config.json; then
+    existing_uuid="$(grep -oE '"id"[[:space:]]*:[[:space:]]*"[0-9a-fA-F-]{36}"' /etc/xray/config.json | head -n 1 | grep -oE '[0-9a-fA-F-]{36}')"
+    if [ -n "$existing_uuid" ]; then
+        uuid="$existing_uuid"
+        echo -e "[ ${green}INFO${NC} ] Config Xray existing dipertahankan (UUID: $uuid)."
+        XRAY_CONFIG_EXISTS=1
+    fi
+fi
+XRAY_CONFIG_EXISTS="${XRAY_CONFIG_EXISTS:-0}"
 # xray config
+if [ "$XRAY_CONFIG_EXISTS" -eq 0 ]; then
 cat > /etc/xray/config.json << END
 {
   "log" : {
@@ -410,6 +514,38 @@ cat > /etc/xray/config.json << END
   }
 }
 END
+fi # XRAY_CONFIG_EXISTS
+# --- Permission file Xray untuk user www-data --------------------------------
+# Service jalan sebagai www-data, jadi config & sertifikat harus bisa dibaca
+# user tersebut. PrivateKey Xray tidak perlu (dan tidak boleh) world-readable.
+# Catatan: install-release.sh bisa mengubah owner /var/log/xray menjadi xray:xray
+# (mode 700), jadi kepemilikan www-data diterapkan ULANG di sini.
+mkdir -p /var/log/xray /run/xray /usr/local/share/xray
+chown -R www-data:www-data /var/log/xray
+chmod 755 /var/log/xray
+chown www-data:www-data /run/xray
+chmod 755 /usr/local/share/xray
+[ -d /usr/local/share/xray ] && chmod 644 /usr/local/share/xray/*.dat 2>/dev/null
+if [ -f /etc/xray/config.json ]; then
+    chown root:www-data /etc/xray/config.json 2>/dev/null || true
+    chmod 640 /etc/xray/config.json
+fi
+if [ -f /etc/xray/xray.crt ]; then
+    chown root:www-data /etc/xray/xray.crt 2>/dev/null || true
+    chmod 644 /etc/xray/xray.crt
+fi
+if [ -f /etc/xray/xray.key ]; then
+    chown root:www-data /etc/xray/xray.key 2>/dev/null || true
+    chmod 640 /etc/xray/xray.key
+fi
+# Pastikan www-data benar-benar bisa membacanya (dicek dengan sudo -u).
+for xray_file in /etc/xray/config.json /etc/xray/xray.crt /etc/xray/xray.key; do
+    [ -e "$xray_file" ] || continue
+    if ! runuser -u www-data -- test -r "$xray_file" 2>/dev/null; then
+        echo -e "[ ${yell}WARN${NC} ] www-data belum bisa membaca $xray_file"
+    fi
+done
+
 rm -rf /etc/systemd/system/xray.service.d
 cat <<EOF> /etc/systemd/system/xray.service
 [Unit]
@@ -604,12 +740,34 @@ wget -q -O /usr/bin/bbr "$RAW/data/bbr.sh"
 chmod +x /usr/bin/bbr
 bbr >/dev/null 2>&1
 rm /usr/bin/bbr >/dev/null 2>&1
-echo -e "$yell[SERVICE]$NC Restart All service"
+echo -e "${yell}[SERVICE]${NC} Restart All service"
 systemctl daemon-reload
 sleep 1
+
+# --- Test config SEBELUM service dibuat/di-enable ---------------------------
+# Tanpa ini, config yang salah hanya terlihat sebagai "service gagal start".
+if [ ! -x /usr/local/bin/xray ]; then
+    echo -e "[ ${red}ERROR${NC} ] /usr/local/bin/xray tidak ada: xray.service TIDAK dibuat/di-enable."
+    exit 1
+fi
+if xray_test_out="$(/usr/local/bin/xray run -test -config /etc/xray/config.json 2>&1)"; then
+    echo -e "[ ${green}ok${NC} ] Config /etc/xray/config.json valid"
+else
+    echo -e "[ ${red}ERROR${NC} ] Config /etc/xray/config.json TIDAK valid. xray.service tidak di-enable."
+    echo -e "[ ${red}ERROR${NC} ] Output 'xray run -test -config /etc/xray/config.json':"
+    printf '%s\n' "$xray_test_out"
+    exit 1
+fi
+
 echo -e "[ ${green}ok${NC} ] Enable & restart xray "
 systemctl enable xray
-systemctl restart xray
+if systemctl restart xray; then
+    sleep 2
+    echo -e "[ ${green}ok${NC} ] systemctl is-active xray: $(systemctl is-active xray)"
+else
+    echo -e "[ ${red}ERROR${NC} ] xray.service gagal start. 20 baris terakhir journal:"
+    journalctl -u xray -n 20 --no-pager 2>/dev/null
+fi
 systemctl restart nginx
 systemctl enable runn
 systemctl restart runn

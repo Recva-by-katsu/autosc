@@ -13,13 +13,22 @@ NET=$(ip -o $ANU -4 route show to default | awk '{print $5}');
 source /etc/os-release
 ver=$VERSION_ID
 
+# warna & helper output dipakai di seluruh log di bawah
+red='\e[1;31m'
+green='\e[0;32m'
+yell='\e[1;33m'
+NC='\e[0m'
+
 #detail nama perusahaan
+# WAJIB di-quote: tanpa tanda kutip, "organization=KatsuTun Premium" membuat
+# bash menyimpan organization="KatsuTun" lalu menjalankan "Premium" sebagai
+# perintah -> "Premium: command not found".
 country=ID
 state=Jawa-Tengah 
 locality=Pati
-organization=KatsuTun Premium
-organizationalunit=KatsuTun Premium
-commonname=KatsuTun Premium
+organization="KatsuTun Premium"
+organizationalunit="KatsuTun Premium"
+commonname="KatsuTun Premium"
 email=plukman123@gmail.com
 
 # simple password minimal
@@ -215,7 +224,9 @@ socket = r:TCP_NODELAY=1
 accept = 222
 connect = 127.0.0.1:22
 
-[dropbear]
+# Nama section stunnel harus unik; dua "[dropbear]" membuat stunnel4 menolak
+# config dan service mati. Port 777 = dropbear untuk websocket SSH.
+[dropbear-ws]
 accept = 777
 connect = 127.0.0.1:109
 
@@ -237,6 +248,9 @@ cat key.pem cert.pem >> /etc/stunnel/stunnel.pem
 
 # konfigurasi stunnel
 sed -i 's/ENABLED=0/ENABLED=1/g' /etc/default/stunnel4
+# enable supaya stunnel4 hidup lagi setelah reboot (ENABLED=1 saja tidak cukup
+# kalau unit-nya belum pernah di-enable).
+systemctl enable stunnel4 >/dev/null 2>&1 || true
 /etc/init.d/stunnel4 restart
 
 #OpenVPN
@@ -334,7 +348,7 @@ fi
 cd
 chown -R www-data:www-data /home/vps/public_html
 sleep 1
-echo -e "$yell[SERVICE]$NC Restart All service SSH & OVPN"
+echo -e "${yell}[SERVICE]${NC} Restart All service SSH & OVPN"
 /etc/init.d/nginx restart >/dev/null 2>&1
 sleep 1
 echo -e "[ ${green}ok${NC} ] Restarting nginx"
