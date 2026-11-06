@@ -5,17 +5,29 @@
 # shellcheck source=data/repo.conf
 . /etc/katsutun/repo.conf
 cd
-wget -O /usr/local/bin/ws-dropbear "$RAW/data/dropbear-ws.py"
-wget -O /usr/local/bin/ws-stunnel "$RAW/data/ws-stunnel"
-wget -O /usr/local/bin/ws-ovpn "$RAW/data/ws-ovpn.py"
+# Unduh berkas websocket dan unit systemd; gagal keras jika salah satu berkas
+# tidak terbentuk dengan lengkap, agar service tidak mati dalam diam.
+dl() { # dl <url> <dest> <label>
+    if ! wget -q -O "$2" "$1" || [ ! -s "$2" ]; then
+        echo -e "[ ${red}ERROR${NC} ] Gagal mengunduh $3 ($1)" >&2
+        return 1
+    fi
+}
+
+dl "$RAW/data/dropbear-ws.py" /usr/local/bin/ws-dropbear ws-dropbear || exit 1
+dl "$RAW/data/ws-stunnel" /usr/local/bin/ws-stunnel ws-stunnel || exit 1
+dl "$RAW/data/ws-ovpn.py" /usr/local/bin/ws-ovpn ws-ovpn || exit 1
 
 chmod +x /usr/local/bin/ws-dropbear
 chmod +x /usr/local/bin/ws-stunnel
 chmod +x /usr/local/bin/ws-ovpn
 
-wget -O /etc/systemd/system/ws-dropbear.service "$RAW/data/service-wsdropbear" && chmod +x /etc/systemd/system/ws-dropbear.service
-wget -O /etc/systemd/system/ws-stunnel.service "$RAW/data/ws-stunnel.service" && chmod +x /etc/systemd/system/ws-stunnel.service
-wget -O /etc/systemd/system/ws-ovpn.service "$RAW/data/ws-ovpn.service" && chmod +x /etc/systemd/system/ws-ovpn.service
+dl "$RAW/data/service-wsdropbear" /etc/systemd/system/ws-dropbear.service service-wsdropbear || exit 1
+dl "$RAW/data/ws-stunnel.service" /etc/systemd/system/ws-stunnel.service ws-stunnel.service || exit 1
+dl "$RAW/data/ws-ovpn.service" /etc/systemd/system/ws-ovpn.service ws-ovpn.service || exit 1
+chmod +x /etc/systemd/system/ws-dropbear.service
+chmod +x /etc/systemd/system/ws-stunnel.service
+chmod +x /etc/systemd/system/ws-ovpn.service
 
 systemctl daemon-reload
 systemctl enable ws-dropbear.service

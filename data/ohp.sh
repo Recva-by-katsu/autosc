@@ -26,7 +26,8 @@ Port_OHP='8787';
 
 #Installing ohp Server
 cd 
-wget -O /usr/local/bin/ohp "$RAW/data/ohp"
+wget -q -O /usr/local/bin/ohp "$RAW/data/ohp" || { echo -e "[ ${RED}ERROR${NC} ] Gagal mengunduh ohp binary ($RAW/data/ohp)" >&2; exit 1; }
+[ -s /usr/local/bin/ohp ] || { echo -e "[ ${RED}ERROR${NC} ] Berkas ohp kosong, unduhan gagal" >&2; exit 1; }
 chmod +x /usr/local/bin/ohp
 
 #Buat File OpenVPN TCP OHP

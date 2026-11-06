@@ -197,7 +197,8 @@ echo "/usr/sbin/nologin" >> /etc/shells
 # install squid
 cd
 apt -y install squid || apt -y install squid3
-wget -O /etc/squid/squid.conf "$RAW/data/squid.conf"
+wget -q -O /etc/squid/squid.conf "$RAW/data/squid.conf" || { echo -e "[ ${red}ERROR${NC} ] Gagal unduh squid.conf" >&2; exit 1; }
+[ -s /etc/squid/squid.conf ] || { echo -e "[ ${red}ERROR${NC} ] squid.conf kosong" >&2; exit 1; }
 sed -i $MYIP2 /etc/squid/squid.conf
 
 cd
@@ -241,7 +242,8 @@ sed -i 's/ENABLED=0/ENABLED=1/g' /etc/default/stunnel4
 #OpenVPN
 #echo "Want to install OpenVPN? (y/n)"; read answer
 #if [ "$answer" != "$(answer#[Yy])" ]; then
-wget "$RAW/data/vpn.sh" &&  chmod +x vpn.sh && ./vpn.sh
+wget -q "$RAW/data/vpn.sh" || { echo -e "[ ${red}ERROR${NC} ] Gagal unduh vpn.sh" >&2; exit 1; }
+chmod +x vpn.sh && ./vpn.sh
 #fi
 
 # install fail2ban
