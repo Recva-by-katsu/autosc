@@ -1,5 +1,5 @@
 #!/bin/bash
-# KatsuTun updater.
+# KatsuTun Premium updater.
 # Installs every file listed in data/manifest.txt from one exact GitHub commit,
 # so an install or update is always a consistent snapshot of the repository.
 #
@@ -36,7 +36,7 @@ mkdir -p "$CONF_DIR" "$BACKUP_DIR"
 # ------------------------------------------------------------------ config
 default_conf() {
 cat > "$CONF" <<'END'
-# KatsuTun auto update settings. Edit with: menu-update
+# KatsuTun Premium auto update settings. Edit with: menu-update
 # Repo yang diikuti diatur di repo.conf, bukan di sini.
 AUTO_UPDATE=on
 INTERVAL=5
@@ -61,12 +61,12 @@ LEGACY_BRANCH=$BRANCH
 # so a fork keeps pointing at itself.
 default_repo_conf() {
 cat > "$REPO_CONF" <<END
-# KatsuTun — sumber script & branding.
+# KatsuTun Premium — sumber script & branding.
 # Ubah lalu jalankan: katsu-update apply --force
 GH_USER="\${GH_USER:-${1:-Recva-by-katsu}}"
 GH_REPO="\${GH_REPO:-${2:-autosc}}"
 GH_BRANCH="\${GH_BRANCH:-${3:-main}}"
-BRAND="\${BRAND:-KatsuTun}"
+BRAND="\${BRAND:-KatsuTun Premium}"
 REPO_SLUG="\$GH_USER/\$GH_REPO"
 REPO_URL="https://github.com/\$REPO_SLUG"
 ISSUES_URL="\$REPO_URL/issues"

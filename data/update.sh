@@ -4,7 +4,7 @@
 [ -r /etc/katsutun/repo.conf ] || katsu-update status >/dev/null 2>&1
 # shellcheck source=data/repo.conf
 . /etc/katsutun/repo.conf
-###########- KatsuTun -##############
+###########- KatsuTun Premium -##############
 # Legacy `update` command. All real work is done by katsu-update, which
 # installs every file in data/manifest.txt from the newest GitHub commit.
 colornow=$(cat /etc/yudhynetwork/theme/color.conf 2>/dev/null)
@@ -23,7 +23,7 @@ echo -e "$COLOR1┌────────────────────�
 
 # Bootstrap the updater itself on installs that predate it.
 if [ ! -x /usr/bin/katsu-update ]; then
-echo -e "$COLOR1 ${NC}  $COLOR1[INFO]${NC} Installing KatsuTun updater"
+echo -e "$COLOR1 ${NC}  $COLOR1[INFO]${NC} Installing KatsuTun Premium updater"
 wget -q -O /usr/bin/katsu-update "$RAW/data/katsu-update.sh" && chmod +x /usr/bin/katsu-update
 fi
 

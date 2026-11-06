@@ -4,7 +4,7 @@
 [ -r /etc/katsutun/repo.conf ] || katsu-update status >/dev/null 2>&1
 # shellcheck source=data/repo.conf
 . /etc/katsutun/repo.conf
-# ===================YudhyNet====================
+# ===================KatsuTun Premium====================
 # initializing var
 export DEBIAN_FRONTEND=noninteractive
 MYIP=$(wget -qO- ipinfo.io/ip);
@@ -17,9 +17,9 @@ ver=$VERSION_ID
 country=ID
 state=Jawa-Tengah 
 locality=Pati
-organization=KatsuTun
-organizationalunit=KatsuTun
-commonname=KatsuTun
+organization=KatsuTun Premium
+organizationalunit=KatsuTun Premium
+commonname=KatsuTun Premium
 email=plukman123@gmail.com
 
 # simple password minimal
@@ -281,7 +281,7 @@ sleep 1
 echo -e "[ ${green}INFO$NC ] Settings banner"
 wget -q -O /etc/issue.net "$RAW/data/issue.net"
 # Banner is a template; fill in the repo's own branding/contact.
-sed -i -e "s|__BRAND__|${BRAND:-KatsuTun}|g" -e "s|__CONTACT__|${REPO_URL#https://}|g" /etc/issue.net
+sed -i -e "s|__BRAND__|${BRAND:-KatsuTun Premium}|g" -e "s|__CONTACT__|${REPO_URL#https://}|g" /etc/issue.net
 chmod +x /etc/issue.net
 echo "Banner /etc/issue.net" >> /etc/ssh/sshd_config
 sed -i 's@DROPBEAR_BANNER=""@DROPBEAR_BANNER="/etc/issue.net"@g' /etc/default/dropbear

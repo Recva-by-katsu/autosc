@@ -3,7 +3,7 @@
 dateFromServer=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
 biji=`date +"%Y-%m-%d" -d "$dateFromServer"`
 
-############# KatsuTun #############
+############# KatsuTun Premium #############
 #Text Coloring
 clear
 red='\e[1;31m'
@@ -16,7 +16,7 @@ tyblue() { echo -e "\\033[36;1m${*}\\033[0m"; }
 yellow() { echo -e "\\033[33;1m${*}\\033[0m"; }
 green() { echo -e "\\033[32;1m${*}\\033[0m"; }
 red() { echo -e "\\033[31;1m${*}\\033[0m"; }
-############# KatsuTun #############
+############# KatsuTun Premium #############
 
 #System version number
 cd
@@ -79,7 +79,7 @@ echo -e "[ ${tyblue}NOTE${NC} ] KATSUTUN AUTO INSTALL SCRIPT.... "
 sleep 1
 echo -e "[ ${tyblue}NOTE${NC} ] Multi path, Multi port, support debian 10 , Ubuntu 20-18"
 sleep 2
-echo -e "[ ${green}INFO${NC} ] By KatsuTun"
+echo -e "[ ${green}INFO${NC} ] By KatsuTun Premium"
 sleep 1
 echo -e "[ ${green}INFO${NC} ] $REPO_URL"
 sleep 5
@@ -152,7 +152,7 @@ wget -q "$RAW/data/dependencies.sh";chmod +x dependencies.sh;./dependencies.sh
 rm dependencies.sh
 clear
 
-############# KatsuTun #############
+############# KatsuTun Premium #############
 #THEME RED
 cat <<EOF> /etc/yudhynetwork/theme/red
 BG : \E[40;1;41m
@@ -187,7 +187,7 @@ EOF
 cat <<EOF> /etc/yudhynetwork/theme/color.conf
 blue
 EOF
-############# KatsuTun #############
+############# KatsuTun Premium #############
 
 #install ssh ovpn
 echo -e "${tyblue}.------------------------------------------.${NC}"
@@ -250,10 +250,10 @@ curl -s ipinfo.io/org | cut -d " " -f 2-10 > /etc/lukman/isp
 curl -s ipinfo.io/city > /etc/lukman/city
 clear
 
-############# KatsuTun #############
+############# KatsuTun Premium #############
 # /root/.profile is installed by katsu-update from data/profile (see manifest).
 
-############# KatsuTun #############
+############# KatsuTun Premium #############
 
 if [ -f "/root/log-install.txt" ]; then
 rm /root/log-install.txt > /dev/null 2>&1
@@ -275,7 +275,7 @@ gg="AM"
 fi
 curl -sS ifconfig.me > /etc/myipvps
 
-############# KatsuTun #############
+############# KatsuTun Premium #############
 
 echo " "
 echo "Installation has been completed!!"
