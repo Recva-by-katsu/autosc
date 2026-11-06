@@ -4,7 +4,7 @@
 [ -r /etc/katsutun/repo.conf ] || katsu-update status >/dev/null 2>&1
 # shellcheck source=data/repo.conf
 . /etc/katsutun/repo.conf
-# ===================YudhyNet====================
+# ===================KatsuTun Premium====================
 # initializing var
 export DEBIAN_FRONTEND=noninteractive
 MYIP=$(wget -qO- ipinfo.io/ip);
@@ -17,9 +17,9 @@ ver=$VERSION_ID
 country=ID
 state=Jawa-Tengah 
 locality=Pati
-organization=KatsuTun
-organizationalunit=KatsuTun
-commonname=KatsuTun
+organization=KatsuTun Premium
+organizationalunit=KatsuTun Premium
+commonname=KatsuTun Premium
 email=plukman123@gmail.com
 
 # simple password minimal
@@ -197,7 +197,8 @@ echo "/usr/sbin/nologin" >> /etc/shells
 # install squid
 cd
 apt -y install squid || apt -y install squid3
-wget -O /etc/squid/squid.conf "$RAW/data/squid.conf"
+wget -q -O /etc/squid/squid.conf "$RAW/data/squid.conf" || { echo -e "[ ${red}ERROR${NC} ] Gagal unduh squid.conf" >&2; exit 1; }
+[ -s /etc/squid/squid.conf ] || { echo -e "[ ${red}ERROR${NC} ] squid.conf kosong" >&2; exit 1; }
 sed -i $MYIP2 /etc/squid/squid.conf
 
 cd
@@ -241,7 +242,8 @@ sed -i 's/ENABLED=0/ENABLED=1/g' /etc/default/stunnel4
 #OpenVPN
 #echo "Want to install OpenVPN? (y/n)"; read answer
 #if [ "$answer" != "$(answer#[Yy])" ]; then
-wget "$RAW/data/vpn.sh" &&  chmod +x vpn.sh && ./vpn.sh
+wget -q "$RAW/data/vpn.sh" || { echo -e "[ ${red}ERROR${NC} ] Gagal unduh vpn.sh" >&2; exit 1; }
+chmod +x vpn.sh && ./vpn.sh
 #fi
 
 # install fail2ban
@@ -279,7 +281,7 @@ sleep 1
 echo -e "[ ${green}INFO$NC ] Settings banner"
 wget -q -O /etc/issue.net "$RAW/data/issue.net"
 # Banner is a template; fill in the repo's own branding/contact.
-sed -i -e "s|__BRAND__|${BRAND:-KatsuTun}|g" -e "s|__CONTACT__|${REPO_URL#https://}|g" /etc/issue.net
+sed -i -e "s|__BRAND__|${BRAND:-KatsuTun Premium}|g" -e "s|__CONTACT__|${REPO_URL#https://}|g" /etc/issue.net
 chmod +x /etc/issue.net
 echo "Banner /etc/issue.net" >> /etc/ssh/sshd_config
 sed -i 's@DROPBEAR_BANNER=""@DROPBEAR_BANNER="/etc/issue.net"@g' /etc/default/dropbear

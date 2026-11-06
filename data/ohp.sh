@@ -26,13 +26,14 @@ Port_OHP='8787';
 
 #Installing ohp Server
 cd 
-wget -O /usr/local/bin/ohp "$RAW/data/ohp"
+wget -q -O /usr/local/bin/ohp "$RAW/data/ohp" || { echo -e "[ ${RED}ERROR${NC} ] Gagal mengunduh ohp binary ($RAW/data/ohp)" >&2; exit 1; }
+[ -s /usr/local/bin/ohp ] || { echo -e "[ ${RED}ERROR${NC} ] Berkas ohp kosong, unduhan gagal" >&2; exit 1; }
 chmod +x /usr/local/bin/ohp
 
 #Buat File OpenVPN TCP OHP
 cat > /etc/openvpn/client-tcp-ohp1194.ovpn <<END
 ############## WELCOME ###############
-############# By KatsuTun ##############
+############# By KatsuTun Premium ##############
 client
 dev tun
 proto tcp
@@ -71,7 +72,7 @@ cd
 #Buat Service Untuk OHP Ovpn
 cat > /etc/systemd/system/ohp.service <<END
 [Unit]
-Description=Direct Squid Proxy For OpenVPN TCP By KatsuTun
+Description=Direct Squid Proxy For OpenVPN TCP By KatsuTun Premium
 Documentation=$REPO_URL
 Wants=network.target
 After=network.target
@@ -92,4 +93,4 @@ echo ""
 echo -e "${GREEN}Done Installing OHP Server${NC}"
 echo -e "Port OVPN OHP TCP: $Port_OHP"
 echo -e "Link Download OVPN OHP: http://$MYIP:81/client-tcp-ohp1194.ovpn"
-echo -e "KatsuTun"
+echo -e "KatsuTun Premium"

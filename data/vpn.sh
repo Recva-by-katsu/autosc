@@ -74,7 +74,7 @@ sed -i $MYIP2 /etc/openvpn/client-tcp-1194.ovpn;
 # Buat config client UDP 2200
 cat > /etc/openvpn/client-udp-2200.ovpn <<-END
 ############## WELCOME ###############
-############# By YudhyNet ##############
+############# By KatsuTun Premium ##############
 client
 dev tun
 proto udp
@@ -99,7 +99,7 @@ sed -i $MYIP2 /etc/openvpn/client-udp-2200.ovpn;
 # Buat config client SSL
 cat > /etc/openvpn/client-tcp-ssl.ovpn <<-END
 ############## WELCOME ###############
-############# By Yudhy net ##############
+############# By KatsuTun Premium ##############
 client
 dev tun
 proto tcp

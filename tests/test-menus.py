@@ -40,7 +40,7 @@ class MenuScreens(unittest.TestCase):
             path.write_text("#!/bin/sh\n" + body + "\n")
             path.chmod(0o755)
         files = {
-            "etc/katsutun/repo.conf": 'BRAND=KatsuTun; RAW=http://127.0.0.1/none; REPO_URL=x\n',
+            "etc/katsutun/repo.conf": 'BRAND=KatsuTun Premium; RAW=http://127.0.0.1/none; REPO_URL=x\n',
             "etc/yudhynetwork/theme/color.conf": "blue\n",
             "etc/xray/domain": "demo.example\n", "etc/xray/ssh.txt": "alice\n",
             "etc/xray/config.json": "{}", "etc/lukman/ip": "192.0.2.10\n", "etc/lukman/isp": "ISP\n",

@@ -1,6 +1,6 @@
 #!/bin/bash
 UI_LIB=/usr/local/lib/katsutun/ui.sh
-[ -r "$UI_LIB" ] || { echo "KatsuTun UI library is missing. Run: katsu-update apply --force"; exit 1; }
+[ -r "$UI_LIB" ] || { echo "KatsuTun Premium UI library is missing. Run: katsu-update apply --force"; exit 1; }
 # shellcheck source=data/katsu-ui.sh
 . "$UI_LIB"
 ui_init

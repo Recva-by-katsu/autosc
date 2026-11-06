@@ -6,7 +6,7 @@
 . /etc/katsutun/repo.conf
 dateFromServer=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
 biji=`date +"%Y-%m-%d" -d "$dateFromServer"`
-############ KatsuTun #############
+############ KatsuTun Premium #############
 clear
 red='\e[1;31m'
 green='\e[0;32m'
@@ -70,11 +70,17 @@ touch /var/log/xray/error2.log
 
 # Ambil Xray Core Version Terbaru
 #latest_version="$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | grep tag_name | sed -E 's/.*"v(.*)".*/\1/' | head -n 1)"
-latest_version="24.11.5"
-# Installation Xray Core
-# $latest_version
-xraycore_link="https://github.com/XTLS/Xray-core/releases/download/v1.7.5/xray-linux-64.zip"
-bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data --version $latest_version
+# Ambil versi Xray core terbaru dari GitHub API. Jika API tidak dapat
+# dicapai (misal jaringan VPS terbatas), gunakan fallback stabil.
+latest_version="$(curl -fsSL https://api.github.com/repos/XTLS/Xray-core/releases/latest 2>/dev/null \
+    | grep -oE '"tag_name": "v[0-9]+\.[0-9]+\.[0-9]+"' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)"
+latest_version="${latest_version:-1.8.7}"
+echo -e "[ ${green}INFO${NC} ] Xray core version: $latest_version"
+bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data --version "$latest_version"
+
+if [ ! -x /usr/local/bin/xray ]; then
+    echo -e "[ ${red}ERROR${NC} ] Gagal menginstal Xray core. Cek koneksi VPS ke github.com."
+fi
 
 ## crt xray
 #systemctl stop nginx
@@ -96,30 +102,41 @@ bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release
 #if ! grep -q 'ssl_renew.sh' /var/spool/cron/crontabs/root;then (crontab -l;echo "15 03 */3 * * /usr/local/bin/ssl_renew.sh") | crontab;fi
 
 #############################################################################
-read -p "Install certificate for IPv4 or IPv6? (4/6): " ip_version
-#read -p "Enter domain: " domain
-if [[ $ip_version == "4" ]]; then
-    systemctl stop nginx
-    mkdir /root/.acme.sh
-    curl https://acme-install.netlify.app/acme.sh -o /root/.acme.sh/acme.sh
+# Pilihan versi IP: default IPv4. Saat dijalankan non-interaktif (tanpa TTY,
+# misal via wget | bash), read akan mendapat EOF — defaultkan ke 4 supaya
+# proses install tidak terhenti di tengah jalan.
+if [[ -t 0 ]]; then
+    read -rp "Install certificate for IPv4 or IPv6? (4/6): " ip_version
+fi
+ip_version="${ip_version:-4}"
+
+issue_cert() {
+    local mode="$1"
+    systemctl stop nginx >/dev/null 2>&1
+    mkdir -p /root/.acme.sh
+    curl -fsSL https://acme-install.netlify.app/acme.sh -o /root/.acme.sh/acme.sh || return 1
     chmod +x /root/.acme.sh/acme.sh
-    /root/.acme.sh/acme.sh --upgrade --auto-upgrade
-    /root/.acme.sh/acme.sh --set-default-ca --server letsencrypt
-    /root/.acme.sh/acme.sh --issue -d $domain --standalone -k ec-256
-    ~/.acme.sh/acme.sh --installcert -d $domain --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
-    echo "Cert installed for IPv4."
-elif [[ $ip_version == "6" ]]; then
-    systemctl stop nginx
-    mkdir /root/.acme.sh
-    curl https://acme-install.netlify.app/acme.sh -o /root/.acme.sh/acme.sh
-    chmod +x /root/.acme.sh/acme.sh
-    /root/.acme.sh/acme.sh --upgrade --auto-upgrade
-    /root/.acme.sh/acme.sh --set-default-ca --server letsencrypt
-    /root/.acme.sh/acme.sh --issue -d $domain --standalone -k ec-256 --listen-v6
-    ~/.acme.sh/acme.sh --installcert -d $domain --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
-    echo "Cert installed for IPv6."
-else
-    echo "Invalid IP version. Please choose '4' for IPv4 or '6' for IPv6."
+    /root/.acme.sh/acme.sh --upgrade --auto-upgrade >/dev/null 2>&1 || true
+    /root/.acme.sh/acme.sh --set-default-ca --server letsencrypt >/dev/null 2>&1 || true
+    if [[ "$mode" == "6" ]]; then
+        /root/.acme.sh/acme.sh --issue -d "$domain" --standalone -k ec-256 --listen-v6
+    else
+        /root/.acme.sh/acme.sh --issue -d "$domain" --standalone -k ec-256
+    fi
+}
+
+if ! issue_cert "$ip_version" || ! ~/.acme.sh/acme.sh --installcert -d "$domain" --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc; then
+    echo -e "[ ${yell}WARN${NC} ] Gagal menerbitkan sertifikat Let's Encrypt untuk $domain."
+    echo -e "[ ${yell}WARN${NC} ] Pastikan domain sudah diarahkan ke IP VPS dan port 80 terbuka."
+    echo -e "[ ${yell}WARN${NC} ] Pasang sertifikat self-signed supaya nginx masih bisa nyala."
+    mkdir -p /etc/xray
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout /etc/xray/xray.key -out /etc/xray/xray.crt \
+        -subj "/CN=$domain" >/dev/null 2>&1 || true
+fi
+
+if [ ! -s /etc/xray/xray.crt ] || [ ! -s /etc/xray/xray.key ]; then
+    echo -e "[ ${red}ERROR${NC} ] Tidak ada sertifikat SSL untuk $domain; nginx dan WS TLS tidak akan bisa berjalan."
 fi
 # nginx renew ssl
 echo -n '#!/bin/bash
@@ -445,9 +462,9 @@ cat >/etc/nginx/conf.d/xray.conf <<EOF
              ssl_ciphers EECDH+CHACHA20:EECDH+CHACHA20-draft:EECDH+ECDSA+AES128:EECDH+aRSA+AES128:RSA+AES128:EECDH+ECDSA+AES256:EECDH+aRSA+AES256:RSA+AES256:EECDH+ECDSA+3DES:EECDH+aRSA+3DES:RSA+3DES:!MD5;
              ssl_protocols TLSv1.1 TLSv1.2 TLSv1.3;
              root /home/vps/public_html;
-        # Yudhy Network
+        # KatsuTun Premium
         # Important:
-        # yudhy.net
+        # KatsuTun Premium
 
         }
 EOF

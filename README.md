@@ -1,8 +1,8 @@
-# KatsuTun — Script Autoinstaller for SSHws and Xray
+# KatsuTun Premium — Script Autoinstaller for SSHws and Xray
 Mendukung Debian 10/11/12 dan Ubuntu 20.04/22.04/24.04. Gunakan Ubuntu 22.04
 atau Debian 12 untuk instalasi baru.
 
-NB: These codes are totally free, open source, and all belongs to ©Yudhynet. Me personally just completed some codes
+NB: These codes are totally free, open source, and all belongs to ©KatsuTun Premium. Me personally just completed some codes
 
 ## Dashboard terminal
 
@@ -55,7 +55,7 @@ file, `data/repo.conf`, yang dipasang ke `/etc/katsutun/repo.conf` saat install:
 GH_USER="${GH_USER:-Recva-by-katsu}"
 GH_REPO="${GH_REPO:-autosc}"
 GH_BRANCH="${GH_BRANCH:-main}"
-BRAND="${BRAND:-KatsuTun}"
+BRAND="${BRAND:-KatsuTun Premium}"
 ```
 
 Dari situ diturunkan `$RAW`, `$REPO_URL`, dan `$ISSUES_URL` yang dipakai semua
@@ -109,7 +109,7 @@ Konfigurasi update ada di `/etc/katsutun/update.conf`, sumber repo di
 
 ## Dashboard Terminal
 
-Perintah `menu` membuka dashboard KatsuTun yang menampilkan domain, penggunaan
+Perintah `menu` membuka dashboard KatsuTun Premium yang menampilkan domain, penggunaan
 memori, status layanan inti, dan pintasan ke seluruh panel. Tampilan menggunakan
 accent warna yang dapat dipilih lewat **Appearance** (`menu` → `07`) dan tetap
 memakai fungsi menu lama di balik setiap pilihan. Untuk terminal lama yang tidak

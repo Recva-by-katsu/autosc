@@ -1,4 +1,4 @@
-# KatsuTun update manifest
+# KatsuTun Premium update manifest
 # Format : <repo path> <install path> <mode> [service to restart when changed]
 # Lines starting with # are ignored. Files are fetched from the exact commit
 # being installed, so every entry here is always consistent with the others.

@@ -5,7 +5,7 @@
 # shellcheck source=data/repo.conf
 . /etc/katsutun/repo.conf
 UI_LIB=/usr/local/lib/katsutun/ui.sh
-[ -r "$UI_LIB" ] || { echo "KatsuTun UI library is missing. Run: katsu-update apply --force"; exit 1; }
+[ -r "$UI_LIB" ] || { echo "KatsuTun Premium UI library is missing. Run: katsu-update apply --force"; exit 1; }
 # shellcheck source=data/katsu-ui.sh
 . "$UI_LIB"
 ui_init
@@ -47,7 +47,7 @@ echo "Admin_ID: $adm_ids" >>/root/ResBotAuth
 }
 echo -ne " NAMA BOT : "
 read bot_user
-[[ -z $bot_user ]] && bot_user="Yudhy_Bot"
+[[ -z $bot_user ]] && bot_user="KatsuTunBot"
 echo ""
 echo -ne " LIMIT     : "
 read limit_pnl

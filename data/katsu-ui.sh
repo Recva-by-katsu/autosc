@@ -1,5 +1,5 @@
 #!/bin/bash
-# Shared terminal components for KatsuTun menus.
+# Shared terminal components for KatsuTun Premium menus.
 # Palette follows the dashboard reference: blue frame, gold labels, green values.
 # KATSU_ASCII=1 forces ASCII borders, NO_COLOR disables colours.
 
@@ -138,7 +138,7 @@ ui_copy() {  # ui_copy LABEL VALUE : full-width value meant to be copied (never 
     printf '%b%s%b\n' "$UI_LABEL" "$1" "$UI_RESET"
     printf '%b%s%b\n\n' "$UI_TEXT" "$2" "$UI_RESET"
 }
-ui_footer() { printf '  %b%s %s %s %s%b\n' "$UI_MUTED" "$(ui_repeat "$UI_H" 3)" "${BRAND:-KatsuTun}" "$UI_DOT" "$(date '+%d %b %Y %H:%M')" "$UI_RESET"; }
+ui_footer() { printf '  %b%s %s %s %s%b\n' "$UI_MUTED" "$(ui_repeat "$UI_H" 3)" "${BRAND:-KatsuTun Premium}" "$UI_DOT" "$(date '+%d %b %Y %H:%M')" "$UI_RESET"; }
 ui_back_hint() { printf '  %b[00]%b %bBack%b   %b[x]%b %bExit%b\n' "$UI_LABEL" "$UI_RESET" "$UI_MUTED" "$UI_RESET" "$UI_LABEL" "$UI_RESET" "$UI_MUTED" "$UI_RESET"; }
 ui_prompt() { printf '\n%b%s%b %b%s%b ' "$UI_ACCENT" "$UI_ARROW" "$UI_RESET" "$UI_TEXT" "${1:-Select an option:}" "$UI_RESET"; }
 ui_pause() { printf '\n%b%s%b Press any key to continue' "$UI_ACCENT" "$UI_ARROW" "$UI_RESET"; read -r -n 1 -s; printf '\n'; }
