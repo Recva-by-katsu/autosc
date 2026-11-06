@@ -9,6 +9,21 @@ UI_LIB=/usr/local/lib/katsutun/ui.sh
 . "$UI_LIB"
 ui_init
 
+# Spinner hanya saat tampilan utama (non-aktif jika NO_COLOR atau non-TTY)
+spinner_main() {
+    [ -n "$NO_COLOR" ] && return 0
+    [ -t 1 ] || return 0
+    local i=0 spin='⠋⠙⠹⠸⠼⠴⠶⠷⠺⠻'
+    local end=$(( $(date +%s) + 2 ))
+    while [ $(date +%s) -lt $end ]; do
+        i=$(( (i + 1) % ${#spin} ))
+        printf '\r%b%s%b  Memuat menu utama...' "$UI_ACCENT" "${spin:$i:1}" "$UI_RESET"
+        sleep 0.1
+    done
+    printf '\r%*s\r' "$(tput cols 2>/dev/null || echo 60)" ''
+}
+spinner_main
+
 set_domain() {
     ui_screen "SET DOMAIN" "TLS configuration"
     ui_card_start

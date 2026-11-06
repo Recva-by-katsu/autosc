@@ -136,15 +136,7 @@ echo "IP=" >> /var/lib/yudhynetwork-pro/ipvps.conf
 if [ -f "/etc/xray/config.json" ]; then
 echo ""
 echo -e "[ ${green}INFO${NC} ] Script Already Installed"
-echo -ne "[ ${yell}WARNING${NC} ] Do you want to install again ? (y/n)? "
-read answer
-if [ "$answer" == "${answer#[Yy]}" ] ;then
-rm setup.sh
-sleep 10
-exit 0
-else
-clear
-fi
+echo -e "[ ${yell}INFO${NC} ] Reinstall otomatis melanjutkan (konfirmasi dinonaktifkan)."
 fi
 
 echo ""
@@ -182,6 +174,11 @@ EOF
 cat <<EOF> /etc/yudhynetwork/theme/cyan
 BG : \E[40;1;46m
 TEXT : \033[0;36m
+EOF
+#THEME PURPLE
+cat <<EOF> /etc/yudhynetwork/theme/purple
+BG : \E[40;1;45m
+TEXT : \033[1;35m
 EOF
 #THEME CONFIG
 cat <<EOF> /etc/yudhynetwork/theme/color.conf

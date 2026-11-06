@@ -18,6 +18,7 @@ ui_blank
 ui_menu_pair 1 "BLUE" "COOL" 4 "CYAN" "DEFAULT"
 ui_menu_pair 2 "RED" "BOLD" 5 "GREEN" "FRESH"
 ui_menu_pair 3 "YELLOW" "WARM" 6 "MAGENTA" "VIVID"
+ui_menu_item 7 "PURPLE" "ROYAL"
 ui_blank
 ui_menu_item 0 "BACK TO DASHBOARD" "EXIT"
 ui_card_end
@@ -32,6 +33,7 @@ case $colormenu in
     04|4) selected=cyan ; label="Cyan" ;;
     05|5) selected=green ; label="Green" ;;
     06|6) selected=magenta ; label="Magenta" ;;
+    07|7) selected=purple ; label="Purple" ;;
     00|0) clear; menu; exit 0 ;;
     *) clear; exec menu-theme ;;
 esac

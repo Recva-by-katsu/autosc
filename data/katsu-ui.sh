@@ -12,6 +12,7 @@ ui_init() {
         yellow)  UI_ACCENT='\033[38;5;220m'; UI_BAR='\033[1;30;48;5;178m' ;;
         magenta) UI_ACCENT='\033[38;5;177m'; UI_BAR='\033[1;37;48;5;91m' ;;
         cyan)    UI_ACCENT='\033[38;5;80m';  UI_BAR='\033[1;37;48;5;30m' ;;
+        purple)  UI_ACCENT='\033[38;5;171m'; UI_BAR='\033[1;37;48;5;97m' ;;
         blue|*)  UI_ACCENT='\033[38;5;75m';  UI_BAR='\033[1;37;48;5;25m' ;;
     esac
     UI_MUTED='\033[38;5;245m'
