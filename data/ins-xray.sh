@@ -63,24 +63,70 @@ sleep 1
 echo -e "[ ${green}INFO$NC ] Downloading & Installing xray core"
 
 # --- Satu sumber kebenaran untuk versi Xray core -----------------------------
-# VERSION boleh dipaksa dari environment (mis. VERSION=1.8.7 ./ins-xray.sh).
-# Kalau tidak, ambil rilis stabil terbaru dari GitHub API; bila API tidak bisa
-# dihubungi, pakai pin fallback. Semua langkah di bawah memakai nilai yang sama,
-# dan nilai inilah yang ditampilkan di log.
-XRAY_VERSION_FALLBACK="1.8.7"
-VERSION="${VERSION:-}"
-if [ -z "$VERSION" ]; then
-    VERSION="$(curl -fsSL --retry 3 https://api.github.com/repos/XTLS/Xray-core/releases/latest 2>/dev/null \
-        | grep -oE '"tag_name":[[:space:]]*"v[0-9]+\.[0-9]+\.[0-9]+"' \
-        | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)"
+# Sejak 2024 tag rilis Xray memakai tanggal (mis. v26.10.31), bukan lagi 1.8.x.
+# Skrip ini menerima dua format dan menormalkannya ke bentuk TANPA "v", karena
+# opsi --version install-release.sh mengharapkan angka polos.
+# Prioritas: XRAY_VERSION (dipin) -> VERSION -> rilis terbaru -> pin fallback.
+XRAY_PROJECT="XTLS/Xray-core"
+XRAY_VERSION_FALLBACK="26.10.31"
+xray_version_re='^[0-9]+\.[0-9]+(\.[0-9]+)?$'   # 26.10.31 (baru) atau 1.8.7 (lama)
+
+# Ambil nomor rilis terbaru. Cara utama: HTTP redirect github.com/releases/latest
+# (tanpa API, jadi tidak kena rate limit 60 req/jam per IP). Cadangan: GitHub API.
+xray_latest_version() {
+    local tag="" hdr_file
+    hdr_file="$(mktemp)"
+    if curl -fsS -o /dev/null -D "$hdr_file" "https://github.com/${XRAY_PROJECT}/releases/latest" >/dev/null 2>&1; then
+        tag="$(tr -d '\r' < "$hdr_file" | grep -i '^location:' | tail -n 1 \
+            | sed -E 's|.*/tag/v?([0-9.]+).*|\1|')"
+    fi
+    rm -f "$hdr_file"
+    if ! [[ "$tag" =~ $xray_version_re ]]; then
+        tag="$(curl -fsSL --retry 3 "https://api.github.com/repos/${XRAY_PROJECT}/releases/latest" 2>/dev/null \
+            | grep -oE '"tag_name":[[:space:]]*"v?[0-9]+\.[0-9]+(\.[0-9]+)?"' \
+            | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -n 1)"
+    fi
+    printf '%s' "$tag"
+}
+
+xray_version_pinned=""
+if [ -n "${XRAY_VERSION:-}${VERSION:-}" ]; then
+    xray_version_pinned="1"
 fi
-# Buang prefix "v" dan spasi/CR (mis. respons HTTP yang tidak terduga).
+VERSION="${XRAY_VERSION:-${VERSION:-}}"
+if [ -z "$VERSION" ]; then
+    VERSION="$(xray_latest_version)"
+fi
 VERSION="${VERSION#v}"
 VERSION="$(printf '%s' "$VERSION" | tr -d '[:space:]')"
-if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+if ! [[ "$VERSION" =~ $xray_version_re ]]; then
+    echo -e "[ ${yell}WARN${NC} ] Versi Xray tidak bisa dideteksi; memakai pin $XRAY_VERSION_FALLBACK."
     VERSION="$XRAY_VERSION_FALLBACK"
 fi
-echo -e "[ ${green}INFO${NC} ] Xray core version: $VERSION"
+# Kunci versi untuk seluruh proses: semua langkah di bawah memakai $VERSION ini.
+XRAY_VERSION="$VERSION"
+echo -e "[ ${green}INFO${NC} ] Xray core version: $XRAY_VERSION"
+
+# --- Arsitektur mesin (zip rilis dipilih sesuai uname -m) --------------------
+case "$(uname -m)" in
+    x86_64 | amd64)            XRAY_ARCH="64" ;;
+    i386 | i686)               XRAY_ARCH="32" ;;
+    aarch64 | arm64 | armv8)   XRAY_ARCH="arm64-v8a" ;;
+    armv7 | armv7l | armv8l)   XRAY_ARCH="arm32-v7a" ;;
+    armv6l)                    XRAY_ARCH="arm32-v6" ;;
+    armv5tel | armv5tejl)      XRAY_ARCH="arm32-v5" ;;
+    loongarch64)               XRAY_ARCH="loong64" ;;
+    riscv64)                   XRAY_ARCH="riscv64" ;;
+    s390x)                     XRAY_ARCH="s390x" ;;
+    ppc64)                     XRAY_ARCH="ppc64" ;;
+    ppc64le)                   XRAY_ARCH="ppc64le" ;;
+    mips64)                    XRAY_ARCH="mips64" ;;
+    mips64le)                  XRAY_ARCH="mips64le" ;;
+    mipsle)                    XRAY_ARCH="mips32le" ;;
+    mips)                      XRAY_ARCH="mips32" ;;
+    *)                         XRAY_ARCH="64" ;;
+esac
+echo -e "[ ${green}INFO${NC} ] Arsitektur: $(uname -m) -> Xray-linux-${XRAY_ARCH}.zip"
 
 # --- Direktori & permission (service berjalan sebagai www-data) --------------
 domainSock_dir="/run/xray"
@@ -98,44 +144,76 @@ for logfile in access.log error.log access2.log error2.log; do
     chown www-data:www-data "/var/log/xray/$logfile"
 done
 
+# Penanda langkah supaya pesan error menyebut langkah mana yang gagal.
+xray_step="inisialisasi"
+xray_installer_log="/tmp/xray-installer.log"
+
+# Cek binary hasil instalasi: harus ada, executable, dan bisa melaporkan versi.
+# "xray version" = perintah baru, "-version" = kompatibilitas gaya lama.
+xray_binary_ok() {
+    [ -x /usr/local/bin/xray ] || return 1
+    local out
+    out="$(/usr/local/bin/xray version 2>&1)" || out="$(/usr/local/bin/xray -version 2>&1)" || return 1
+    XRAY_BINARY_OUTPUT="$out"
+    return 0
+}
+
 # --- 1) Installer resmi XTLS/Xray-install -----------------------------------
 # CARA LAMA (rusak):  bash -c "$(curl -L ...)" @ install -u www-data --version "$v"
 #   * "@" itu placeholder $0 gaya `sh -c`, sehingga argumen yang benar-benar
 #     sampai ke installer adalah "@ install -u www-data --version 1.8.7".
-#   * install-release.sh TIDAK punya opsi "-u" (user selalu xray) sehingga
-#     parsernya jatuh ke cabang default: "@: unknown option -- -" lalu exit 1.
-# CARA BARU: simpan installer ke file lalu jalankan dengan argumen yang valid.
-# Opsi --version butuh angka (tanpa "v"), dan tidak boleh digabung dgn -u.
+#   * install-release.sh versi sekarang TIDAK punya opsi "-u" (user selalu xray),
+#     jadi parsernya jatuh ke cabang default: "@: unknown option -- -" lalu exit 1.
+# CARA BARU: simpan installer ke file (divalidasi bash -n) lalu jalankan dengan
+# argumen yang valid. Opsi --version butuh angka polos (tanpa "v") dan tidak
+# boleh digabung dengan -u.
+# Catatan: sejak 2026 installer resmi juga memasang geodata dari XTLS/Xray-rules-dat
+# dan mengubah owner /var/log/xray menjadi xray:xray -> kita perbaiki lagi di bawah.
 XRAY_INSTALL_URL="https://github.com/XTLS/Xray-install/raw/main/install-release.sh"
 INSTALLER_OK=0
+xray_step="unduh installer resmi (${XRAY_INSTALL_URL})"
 if curl -fsSL --retry 3 "$XRAY_INSTALL_URL" -o /tmp/install-release.sh \
     && [ -s /tmp/install-release.sh ] \
     && bash -n /tmp/install-release.sh; then
-    if bash /tmp/install-release.sh install --version "$VERSION"; then
+    xray_step="jalankan installer resmi (install --version ${XRAY_VERSION})"
+    if bash /tmp/install-release.sh install --version "$XRAY_VERSION" >"$xray_installer_log" 2>&1; then
         INSTALLER_OK=1
     else
-        echo -e "[ ${yell}WARN${NC} ] Installer resmi gagal (exit $?). Lanjut ke unduhan zip rilis."
+        echo -e "[ ${yell}WARN${NC} ] Installer resmi gagal (exit $?), 20 baris terakhir:"
+        tail -n 20 "$xray_installer_log" | sed 's/^/    /'
+        echo -e "[ ${yell}WARN${NC} ] Lanjut ke unduhan zip rilis resmi."
     fi
 else
-    echo -e "[ ${yell}WARN${NC} ] Gagal mengunduh install-release.sh dari github.com."
+    echo -e "[ ${yell}WARN${NC} ] Gagal mengunduh/validasi install-release.sh dari github.com."
+fi
+
+# Installer resmi memasang geodata di DAT_PATH; samakan supaya fallback konsisten.
+XRAY_DAT_PATH="/usr/local/share/xray"
+if [ "$INSTALLER_OK" -eq 1 ]; then
+    # Installer generasi lama menaruh geodata di /usr/local/etc/xray, generasi baru
+    # di /usr/local/share/xray. Samakan lokasinya di sini.
+    for dat in geoip.dat geosite.dat; do
+        if [ ! -f "$XRAY_DAT_PATH/$dat" ] && [ -f "/usr/local/etc/xray/$dat" ]; then
+            install -m 644 "/usr/local/etc/xray/$dat" "$XRAY_DAT_PATH/$dat" 2>/dev/null || true
+        fi
+    done
 fi
 
 # --- 2) Fallback: unduh zip rilis langsung -----------------------------------
-if [ "$INSTALLER_OK" -ne 1 ] || [ ! -x /usr/local/bin/xray ]; then
-    echo -e "[ ${yell}INFO${NC} ] Fallback: unduh Xray-linux-64.zip v${VERSION} langsung dari GitHub releases"
+if [ "$INSTALLER_OK" -ne 1 ] || ! xray_binary_ok; then
+    xray_step="unduh zip rilis v${XRAY_VERSION} (Xray-linux-${XRAY_ARCH}.zip)"
+    echo -e "[ ${yell}INFO${NC} ] Fallback: Xray-linux-${XRAY_ARCH}.zip v${XRAY_VERSION} dari GitHub releases"
     apt install -y unzip >/dev/null 2>&1 || true
     xray_tmp="$(mktemp -d)"
-    xray_zip="$xray_tmp/Xray-linux-64.zip"
-    if curl -fL --retry 3 --retry-delay 2 \
-        -o "$xray_zip" \
-        "https://github.com/XTLS/Xray-core/releases/download/v${VERSION}/Xray-linux-64.zip"; then
+    xray_zip="$xray_tmp/Xray-linux-${XRAY_ARCH}.zip"
+    xray_zip_url="https://github.com/${XRAY_PROJECT}/releases/download/v${XRAY_VERSION}/Xray-linux-${XRAY_ARCH}.zip"
+    if curl -fL --retry 3 --retry-delay 2 -o "$xray_zip" "$xray_zip_url" && [ -s "$xray_zip" ]; then
         if unzip -oq "$xray_zip" -d "$xray_tmp"; then
             install -m 755 "$xray_tmp/xray" /usr/local/bin/xray
-            mkdir -p /usr/local/share/xray
-            # geoip.dat/geosite.dat tidak wajib ada di semua rilis -> jangan fatal.
+            # Zip rilis resmi berisi xray + geoip.dat + geosite.dat.
             for dat in geoip.dat geosite.dat; do
                 if [ -f "$xray_tmp/$dat" ]; then
-                    install -m 644 "$xray_tmp/$dat" "/usr/local/share/xray/$dat"
+                    install -m 644 "$xray_tmp/$dat" "$XRAY_DAT_PATH/$dat"
                 else
                     echo -e "[ ${yell}WARN${NC} ] $dat tidak ada di dalam zip rilis."
                 fi
@@ -144,30 +222,61 @@ if [ "$INSTALLER_OK" -ne 1 ] || [ ! -x /usr/local/bin/xray ]; then
             echo -e "[ ${red}ERROR${NC} ] Gagal mengekstrak $xray_zip (file zip rusak?)."
         fi
     else
-        echo -e "[ ${red}ERROR${NC} ] Gagal mengunduh https://github.com/XTLS/Xray-core/releases/download/v${VERSION}/Xray-linux-64.zip"
+        echo -e "[ ${red}ERROR${NC} ] Gagal mengunduh ${xray_zip_url}"
         echo -e "[ ${red}ERROR${NC} ] Periksa koneksi VPS ke github.com / release-assets.githubusercontent.com."
     fi
     rm -rf "$xray_tmp"
+    # Kalau zip menolak (mis. versi dipin sudah tidak tersedia), coba rilis terbaru
+    # sekali lagi supaya instalasi tidak berhenti gara-gara pin yang kedaluwarsa.
+    if ! xray_binary_ok && [ -z "$xray_version_pinned" ]; then
+        latest_retry="$(xray_latest_version)"
+        if [ -n "$latest_retry" ] && [ "$latest_retry" != "$XRAY_VERSION" ]; then
+            echo -e "[ ${yell}WARN${NC} ] v${XRAY_VERSION} tidak bisa diunduh; coba rilis terbaru v${latest_retry}."
+            XRAY_VERSION="$latest_retry"
+            xray_step="unduh zip rilis v${XRAY_VERSION} (percobaan kedua)"
+            xray_tmp="$(mktemp -d)"
+            xray_zip_url="https://github.com/${XRAY_PROJECT}/releases/download/v${XRAY_VERSION}/Xray-linux-${XRAY_ARCH}.zip"
+            if curl -fL --retry 3 --retry-delay 2 -o "$xray_tmp/x.zip" "$xray_zip_url" \
+                && unzip -oq "$xray_tmp/x.zip" -d "$xray_tmp"; then
+                install -m 755 "$xray_tmp/xray" /usr/local/bin/xray
+                for dat in geoip.dat geosite.dat; do
+                    [ -f "$xray_tmp/$dat" ] && install -m 644 "$xray_tmp/$dat" "$XRAY_DAT_PATH/$dat"
+                done
+            fi
+            rm -rf "$xray_tmp"
+        fi
+    fi
 fi
-rm -f /tmp/install-release.sh
+rm -f /tmp/install-release.sh "$xray_installer_log"
 
 # --- 3) Verifikasi wajib: binary harus ada dan bisa jalan --------------------
 # Jangan pernah lanjut membuat/meng-enable xray.service kalau binary tidak ada,
 # karena hasilnya cuma status=203/EXEC dan panel menampilkan XRAY OFFLINE.
 if [ ! -x /usr/local/bin/xray ]; then
     echo -e "[ ${red}ERROR${NC} ] Instalasi Xray GAGAL: /usr/local/bin/xray tidak ada atau tidak executable."
-    echo -e "[ ${red}ERROR${NC} ] Langkah yang gagal: unduh/install Xray core v${VERSION} (installer resmi maupun zip rilis)."
-    echo -e "[ ${red}ERROR${NC} ] Service xray TIDAK dibuat/di-enable. Cek: curl -I https://github.com"
+    echo -e "[ ${red}ERROR${NC} ] Langkah yang gagal: ${xray_step} (installer resmi + zip rilis v${XRAY_VERSION})."
+    echo -e "[ ${red}ERROR${NC} ] Service xray TIDAK dibuat/di-enable. Uji manual: curl -I https://github.com"
     exit 1
 fi
-if ! xray_check="$(/usr/local/bin/xray -version 2>&1)"; then
-    echo -e "[ ${red}ERROR${NC} ] Instalasi Xray GAGAL: /usr/local/bin/xray -version tidak bisa dijalankan."
-    echo -e "[ ${red}ERROR${NC} ] Output: $xray_check"
+if ! xray_binary_ok; then
+    echo -e "[ ${red}ERROR${NC} ] Instalasi Xray GAGAL: /usr/local/bin/xray tidak bisa melaporkan versi."
+    echo -e "[ ${red}ERROR${NC} ] Langkah yang gagal: ${xray_step}."
+    echo -e "[ ${red}ERROR${NC} ] Output: ${XRAY_BINARY_OUTPUT:-<kosong>}"
     echo -e "[ ${red}ERROR${NC} ] Service xray TIDAK dibuat/di-enable."
     exit 1
 fi
-installed_version="$(printf '%s\n' "$xray_check" | grep -oE 'Xray [0-9]+\.[0-9]+\.[0-9]+' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)"
+# Format baris pertama: "Xray 26.10.31 (Xray, Penetrates Everything.) ..."
+installed_version="$(printf '%s\n' "$XRAY_BINARY_OUTPUT" | head -n 1 \
+    | grep -oE 'Xray v?[0-9]+\.[0-9]+(\.[0-9]+)?' | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -n 1)"
+if [ -n "$installed_version" ] && [ "$installed_version" != "$XRAY_VERSION" ]; then
+    echo -e "[ ${yell}WARN${NC} ] Versi terpasang (${installed_version}) beda dari yang diminta (${XRAY_VERSION})."
+fi
 echo -e "[ ${green}ok${NC} ] Xray core terpasang: ${installed_version:-versi tidak terdeteksi} (/usr/local/bin/xray)"
+if [ -f "$XRAY_DAT_PATH/geoip.dat" ] && [ -f "$XRAY_DAT_PATH/geosite.dat" ]; then
+    echo -e "[ ${green}ok${NC} ] Geodata: $XRAY_DAT_PATH/geoip.dat + geosite.dat"
+else
+    echo -e "[ ${yell}WARN${NC} ] Geodata (geoip.dat/geosite.dat) belum lengkap di $XRAY_DAT_PATH."
+fi
 
 ## crt xray
 #systemctl stop nginx
@@ -308,6 +417,8 @@ cat > /etc/xray/config.json << END
                  "id": "${uuid}",
                  "alterId": 0
 #vmess
+                 # catatan: core Xray baru mengabaikan "alterId" (AEAD only);
+                 # field dibiarkan supaya config lama tetap kompatibel.
              }
           ]
        },
@@ -390,6 +501,7 @@ cat > /etc/xray/config.json << END
                  "id": "${uuid}",
                  "alterId": 0
 #vmessgrpc
+                 # catatan: "alterId" diabaikan oleh core baru (AEAD only).
              }
           ]
        },
@@ -750,8 +862,16 @@ if [ ! -x /usr/local/bin/xray ]; then
     echo -e "[ ${red}ERROR${NC} ] /usr/local/bin/xray tidak ada: xray.service TIDAK dibuat/di-enable."
     exit 1
 fi
+echo -e "[ ${green}INFO${NC} ] Testing config dengan $(printf '%s' "$XRAY_BINARY_OUTPUT" | head -n 1)"
 if xray_test_out="$(/usr/local/bin/xray run -test -config /etc/xray/config.json 2>&1)"; then
+    # Core baru mencetak "Configuration OK."; core lama hanya diam.
     echo -e "[ ${green}ok${NC} ] Config /etc/xray/config.json valid"
+    printf '%s\n' "$xray_test_out" | grep -q 'Configuration OK' && echo -e "[ ${green}ok${NC} ] xray: Configuration OK."
+    # Peringatan deprecated (VMess/Trojan) tidak fatal, tapi ditampilkan.
+    if printf '%s\n' "$xray_test_out" | grep -qi 'deprecated'; then
+        echo -e "[ ${yell}WARN${NC} ] Catatan dari Xray (fitur deprecated, tetap jalan):"
+        printf '%s\n' "$xray_test_out" | grep -i 'deprecated' | sed 's/^/    /'
+    fi
 else
     echo -e "[ ${red}ERROR${NC} ] Config /etc/xray/config.json TIDAK valid. xray.service tidak di-enable."
     echo -e "[ ${red}ERROR${NC} ] Output 'xray run -test -config /etc/xray/config.json':"

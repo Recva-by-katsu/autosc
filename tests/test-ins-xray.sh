@@ -4,6 +4,8 @@
 #   bash -c "$(curl ...)" @ install -u www-data --version X
 #   -> "@: unknown option -- -" lalu xray tidak terpasang dan xray.service
 #      dibuat dengan status=203/EXEC.
+# Juga dijaga agar skrip mengikuti format rilis Xray yang sekarang (v26.10.31),
+# bukan lagi hanya 1.8.x.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -28,25 +30,35 @@ check_not_code() { # check_not_code <file> <fixed-string> <label>
 echo "== ins-xray.sh: pemanggilan installer Xray"
 check_not_code "$xray" 'bash -c "$(curl' "installer tidak lagi dipanggil lewat bash -c ... @"
 check_not_code "$xray" 'install -u www-data' "opsi -u (tidak ada di install-release.sh) tidak dipakai"
-check "$xray" 'bash /tmp/install-release.sh install --version "$VERSION"' \
+check "$xray" 'bash /tmp/install-release.sh install --version "$XRAY_VERSION"' \
     "installer resmi dipanggil dengan argumen yang valid"
 check "$xray" 'bash -n /tmp/install-release.sh' "installer divalidasi sebelum dijalankan"
+check "$xray" '"$xray_installer_log" 2>&1' "output installer disimpan untuk diagnostik"
+
+echo "== ins-xray.sh: versi mengikuti rilis Xray sekarang (v26.x)"
+check "$xray" 'XRAY_VERSION_FALLBACK="26.10.31"' "pin fallback memakai format versi baru"
+check "$xray" 'xray_version_re=' "format versi divalidasi dengan regex"
+check "$xray" '(\.[0-9]+)?' "regex menerima format lama (1.8.7) maupun baru (26.10.31)"
+check "$xray" 'github.com/${XRAY_PROJECT}/releases/latest' "versi terbaru dari redirect github.com"
+check "$xray" 'api.github.com/repos/${XRAY_PROJECT}/releases/latest' "API GitHub dipakai sebagai cadangan"
+check "$xray" 'XRAY_PROJECT="XTLS/Xray-core"' "repo sumber jadi satu variabel"
+check_not_code "$xray" 'latest_version="' "variabel versi ganda (latest_version) dihapus"
+check "$xray" 'Xray core version: $XRAY_VERSION' "log versi memakai satu sumber kebenaran"
+check "$xray" 'XRAY_VERSION="$VERSION"' "versi dikunci setelah normalisasi"
 
 echo "== ins-xray.sh: fallback zip rilis"
-check "$xray" 'Xray-core/releases/download/v${VERSION}/Xray-linux-64.zip' "fallback memakai zip rilis resmi"
+check "$xray" 'Xray-linux-${XRAY_ARCH}.zip' "nama zip mengikuti arsitektur mesin"
+check "$xray" 'XRAY_ARCH="arm64-v8a"' "arsitektur arm64 dipetakan"
+check "$xray" 'XRAY_ARCH="arm32-v7a"' "arsitektur armv7 dipetakan"
 check "$xray" 'curl -fL --retry 3' "unduhan fallback memakai curl -fL --retry 3"
 check "$xray" 'install -m 755 "$xray_tmp/xray" /usr/local/bin/xray' "binary di-install 755"
-check "$xray" '"/usr/local/share/xray/$dat"' "geoip.dat/geosite.dat disalin ke /usr/local/share/xray"
-
-echo "== ins-xray.sh: satu sumber kebenaran versi"
-version_echo=$(grep -c 'Xray core version: \$VERSION' "$xray" || true)
-[ "$version_echo" -eq 1 ] && ok "log versi memakai \$VERSION" || fail "log versi tidak konsisten"
-check_not "$xray" 'latest_version' "variabel versi ganda (latest_version) dihapus"
-check "$xray" 'VERSION="${VERSION:-}"' "versi bisa dipin dari environment"
+check "$xray" 'XRAY_DAT_PATH="/usr/local/share/xray"' "geodata ditaruh di /usr/local/share/xray"
+check "$xray" '"$XRAY_DAT_PATH/$dat"' "geoip.dat/geosite.dat disalin ke folder geodata"
+check "$xray" '/usr/local/etc/xray/$dat' "geodata dari path installer lama ikut dimigrasi"
 
 echo "== ins-xray.sh: verifikasi sebelum membuat service"
-check "$xray" '[ ! -x /usr/local/bin/xray ]' "binary dicek sebelum lanjut"
-check "$xray" '/usr/local/bin/xray -version' "binary diuji dengan -version"
+check "$xray" '/usr/local/bin/xray version' "pakai perintah baru 'xray version'"
+check "$xray" '/usr/local/bin/xray -version' "fallback ke '-version' gaya lama"
 check "$xray" '/usr/local/bin/xray run -test -config /etc/xray/config.json' \
     "config diuji dengan run -test"
 test_line=$(grep -n 'run -test -config' "$xray" | head -n1 | cut -d: -f1)
@@ -56,6 +68,8 @@ if [ -n "$test_line" ] && [ -n "$enable_line" ] && [ "$test_line" -lt "$enable_l
 else
     fail "config test harus sebelum systemctl enable xray"
 fi
+check "$xray" 'Langkah yang gagal: ${xray_step}' "pesan error menyebut langkah yang gagal"
+check "$xray" 'Service xray TIDAK dibuat/di-enable' "jelas bahwa service tidak dibuat saat gagal"
 
 echo "== ins-xray.sh: permission untuk www-data"
 check "$xray" 'chown -R www-data:www-data /var/log/xray' "/var/log/xray milik www-data"
