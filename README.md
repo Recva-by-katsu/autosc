@@ -319,9 +319,23 @@ hanya baris perubahan dan sisa masalah yang dicetak, lalu dirangkum di bagian
 Kalau unit `openvpn-server@*` berstatus `activating`, penyebab aslinya
 ditampilkan dari `journalctl` beserta terjemahannya (mis. `comp-lzo` ditolak
 OpenVPN 2.6, `/dev/net/tun` tidak ada di OpenVZ/LXC, port bentrok, plugin PAM
-hilang, atau file sertifikat hilang).
+hilang, atau file sertifikat hilang). Kalau jurnalnya kosong, `--fix` memvalidasi
+config langsung (`openvpn --test-crypto`) sehingga sebab yang sebenarnya tetap
+kelihatan.
 
-Tes offline: `bash tests/test-game-check.sh` (skenario rusak, sehat, dan `--fix`).
+`--fix` juga memperbaiki OpenVPN yang mati: `comp-lzo` yang ditolak versi
+OpenVPN dimatikan di server **dan** di semua client `.ovpn` (`/etc/openvpn/`,
+`/home/vps/public_html/`) — client perlu unduh ulang config — path
+`openvpn-plugin-auth-pam.so` yang salah dibetulkan mengikuti lokasi paket, dan
+pada VPS berpaket OpenVPN 2.4 (template `openvpn@`) config
+`/etc/openvpn/server/*.conf` disymlink ke `/etc/openvpn/<nama>.conf`.
+
+Kartu **SERVER STATUS** membaca OpenVPN dari unit yang benar-benar ada
+(`openvpn-server@` di 2.5+, `openvpn@` di 2.4) dan dari port `1194`/`2200` yang
+listen, jadi label ONLINE/OFFLINE-nya sesuai kenyataan, bukan tebakan.
+
+Tes offline: `bash tests/test-game-check.sh` (skenario rusak, sehat, `--fix`,
+OpenVPN `activating`, OVPN mati karena `comp-lzo` + plugin PAM, dan OpenVPN 2.4).
 
 ### Setelan client yang benar untuk game
 

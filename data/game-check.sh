@@ -71,13 +71,13 @@ note() { [ "$QUIET" = 1 ] && return 0; printf '  %s----%s %s\n' "$C_DIM" "$C_END
 openvpn_error_hint() {
     case "$1" in
         *comp-lzo*|*compression*)
-            echo "OpenVPN 2.6+ menolak comp-lzo: pakai client tanpa kompresi (atau pasang OpenVPN 2.5)" ;;
+            echo "OpenVPN ini menolak comp-lzo: katsu-gamecheck --fix mematikan kompresi di server + client" ;;
         *"Cannot open TUN"*|*"Cannot open tun"*|*"TUN/TAP"*)
             echo "VPS tidak punya /dev/net/tun (OpenVZ/LXC): minta TUN/TAP ke provider" ;;
         *"Address already in use"*|*"bind"*)
             echo "port bentrok: ss -lnup | grep -E '1194|2200'" ;;
         *plugin*|*PAM*)
-            echo "plugin PAM hilang: apt install libpam0g, cek /usr/lib/openvpn/" ;;
+            echo "plugin PAM gagal load: katsu-gamecheck --fix membetulkan path-nya otomatis" ;;
         *"No such file"*|*"Cannot open"*)
             echo "file sertifikat/kunci hilang: pasang ulang dari data/vpn.zip" ;;
         *)
@@ -275,6 +275,58 @@ fix_fail2ban() {
     svc_restart fail2ban
 }
 
+
+########################################################################
+# OpenVPN: validasi konfigurasi & perbaikan penyebab yang bisa otomatis
+########################################################################
+ovpn_conf_dir() { printf '%s' "$(p /etc/openvpn/server)"; }
+
+ovpn_validate_conf() {  # $1 = path conf ; cetak baris error pertama, kosong = valid
+    local conf=$1
+    [ -f "$conf" ] || { echo "file config tidak ada: $conf"; return 0; }
+    have openvpn || return 0
+    local out
+    # --test-crypto mem-parse seluruh opsi (termasuk file cert/dh) lalu keluar,
+    # jadi tidak membuka tun dan tidak berebut port dengan service yang jalan.
+    out=$(timeout 12 openvpn --config "$conf" --test-crypto --verb 3 </dev/null 2>&1 || true)
+    printf '%s\n' "$out" \
+        | grep -iE 'Options error|Exiting due to fatal error|Cannot open|Cannot load|PLUGIN_INIT|not supported|unrecognized option' \
+        | head -n1 | cut -c1-200
+}
+
+ovpn_unit_prefix() {  # template systemd yang tersedia: openvpn-server@ (2.5+) / openvpn@ (2.4)
+    if systemctl list-unit-files 'openvpn-server@.service' --no-legend 2>/dev/null | grep -q 'openvpn-server@' >/dev/null 2>&1; then
+        printf 'openvpn-server@'; return 0
+    fi
+    if systemctl list-unit-files 'openvpn@.service' --no-legend 2>/dev/null | grep -q 'openvpn@' >/dev/null 2>&1; then
+        printf 'openvpn@'; return 0
+    fi
+    printf ''
+}
+
+ovpn_pam_plugin() {  # cari lokasi openvpn-plugin-auth-pam.so yang sebenarnya
+    local base
+    for base in "$(p /usr/lib)" "$(p /usr/lib64)" "$(p /usr/local/lib)"; do
+        [ -d "$base" ] || continue
+        local found
+        found=$(find "$base" -name 'openvpn-plugin-auth-pam.so' -type f 2>/dev/null | head -n1)
+        [ -n "$found" ] && { printf '%s' "$found"; return 0; }
+    done
+    return 1
+}
+
+ovpn_sync_client_compression() {  # samakan client .ovpn dengan server tanpa comp-lzo
+    local f n=0
+    for f in "$(p /etc/openvpn)"/*.ovpn "$(p /home/vps/public_html)"/*.ovpn; do
+        [ -f "$f" ] || continue
+        grep -qE '^[[:space:]]*comp-lzo' "$f" || continue
+        backup "$f"
+        sed -i -E 's/^([[:space:]]*comp-lzo)/#\1  # KatsuTun: disamakan dengan server (tanpa kompresi)/' "$f"
+        n=$((n + 1))
+    done
+    [ "$n" -gt 0 ] && changed "$n file client .ovpn disamakan (comp-lzo dimatikan) - client harus unduh ulang config"
+}
+
 fix_openvpn_mtu() {
     local conf major minor ver
     ver=$(openvpn --version 2>/dev/null | head -n1 | awk '{print $2}')
@@ -298,7 +350,7 @@ fix_openvpn_mtu() {
         [ "$touched" = 1 ] && changed "OpenVPN $(basename "$conf"): tun-mtu 1400 + mssfix 1360"
     done
     [ -n "$ROOT" ] && return 0
-    systemctl restart 'openvpn-server@*' >/dev/null 2>&1
+    systemctl restart 'openvpn-server@*' 'openvpn@*' >/dev/null 2>&1
     sleep 2
     local unit st err
     for unit in $(systemctl list-units --type=service --all --no-legend 'openvpn-server@*' 2>/dev/null | awk '{print $1}'); do
@@ -359,6 +411,84 @@ fix_mss_clamp() {
     fi
 }
 
+
+fix_openvpn_health() {
+    local dir confs conf err unit plug
+    dir=$(ovpn_conf_dir)
+    confs=$(ls "$dir"/*.conf 2>/dev/null)
+    [ -n "$confs" ] || { kept "OpenVPN tidak terpasang"; return 0; }
+    have openvpn || { kept "binary openvpn tidak ada, lewati pemeriksaan OpenVPN"; return 0; }
+
+    for conf in $confs; do
+        err=$(ovpn_validate_conf "$conf")
+        case "$err" in
+            "") kept "$(basename "$conf"): konfigurasi valid" ; continue ;;
+            *comp-lzo*|*compression*)
+                backup "$conf"
+                sed -i -E 's/^([[:space:]]*comp-lzo[^#]*)/#\1  # KatsuTun: ditolak versi OpenVPN ini/' "$conf"
+                changed "$(basename "$conf"): comp-lzo dinonaktifkan (tidak didukung OpenVPN $(openvpn --version 2>/dev/null | head -n1 | awk '{print $2}'))"
+                ovpn_sync_client_compression
+                ;;
+            *plugin*|*PLUGIN*)
+                if plug=$(ovpn_pam_plugin); then
+                    backup "$conf"
+                    sed -i -E "s#^([[:space:]]*)plugin[[:space:]]+[^[:space:]]*auth-pam\.so#\1plugin $plug#" "$conf"
+                    changed "$(basename "$conf"): path plugin PAM diperbaiki -> $plug"
+                else
+                    warn "$(basename "$conf"): plugin PAM tidak ditemukan" "apt install -y libpam0g; lalu ulangi katsu-gamecheck --fix"
+                fi
+                ;;
+            *"Address already in use"*|*"bind"*)
+                warn "$(basename "$conf"): port sudah dipakai proses lain" "cek: ss -lnup | grep -E ':1194|:2200'"
+                ;;
+            *"Cannot open TUN"*|*"TUN/TAP"*)
+                warn "$(basename "$conf"): /dev/net/tun tidak tersedia" "VPS OpenVZ/LXC: minta TUN/TAP ke provider"
+                ;;
+            *)
+                warn "$(basename "$conf"): gagal divalidasi" "$err"
+                ;;
+        esac
+    done
+
+    local prefix link
+    prefix=$(ovpn_unit_prefix)
+    if [ -z "$prefix" ]; then
+        if [ -n "$ROOT" ]; then
+            prefix=openvpn-server@
+        else
+            warn "template systemd OpenVPN tidak ada" "apt-get install -y openvpn; lalu jalankan katsu-gamecheck --fix lagi"
+            return 0
+        fi
+    fi
+    if [ "$prefix" = "openvpn@" ]; then
+        kept "OpenVPN 2.4 terdeteksi (template openvpn@): config dibaca dari /etc/openvpn/*.conf"
+    fi
+    for conf in $confs; do
+        unit="${prefix}$(basename "$conf" .conf)"
+        if [ "$prefix" = "openvpn@" ]; then
+            link="$(p /etc/openvpn)/$(basename "$conf")"
+            if [ ! -e "$link" ]; then
+                ln -sf "$conf" "$link" && changed "$(basename "$conf"): symlink untuk template openvpn@ dibuat"
+            fi
+        fi
+        [ -n "$ROOT" ] && continue
+        systemctl enable "$unit" >/dev/null 2>&1
+        systemctl restart "$unit" >/dev/null 2>&1
+    done
+    [ -n "$ROOT" ] && return 0
+    sleep 2
+    for conf in $confs; do
+        unit="${prefix}$(basename "$conf" .conf)"
+        if [ "$(systemctl is-active "$unit" 2>/dev/null)" = active ]; then
+            changed "$unit: aktif (port $(grep -m1 -E '^port ' "$conf" | awk '{print $2}') siap)"
+        else
+            err=$(ovpn_validate_conf "$conf")
+            [ -n "$err" ] && warn "$unit masih gagal" "$err" \
+                          || warn "$unit masih gagal" "cek: journalctl -u $unit -n 50"
+        fi
+    done
+}
+
 run_fixes() {
     section "Perbaikan otomatis"
     fix_nginx_ws
@@ -368,6 +498,7 @@ run_fixes() {
     fix_fail2ban
     fix_sshd
     fix_openvpn_mtu
+    fix_openvpn_health
     fix_ip_forward
     fix_mss_clamp
     printf '\n'
@@ -426,13 +557,20 @@ if have systemctl; then
                         if [ -n "$err" ]; then
                             printf '  %s     ↳ %s%s\n' "$C_DIM" "$err" "$C_END"
                             printf '  %s     = %s%s\n' "$C_DIM" "$(openvpn_error_hint "$err")" "$C_END"
+                        else
+                            printf '  %s     = %s%s\n' "$C_DIM" \
+                                "katsu-gamecheck --fix memvalidasi config OpenVPN dan menyebut sebab pastinya" "$C_END"
                         fi
                     fi
                     ;;
             esac
         done <<<"$ovpn_units"
     else
-        note "tidak ada unit openvpn-server@* (OpenVPN tidak terpasang)"
+        if ls "$(ovpn_conf_dir)"/*.conf >/dev/null 2>&1; then
+            note "config OpenVPN ada tapi unit systemd-nya tidak ada - jalankan katsu-gamecheck --fix"
+        else
+            note "tidak ada unit openvpn-server@* (OpenVPN tidak terpasang)"
+        fi
     fi
 fi
 

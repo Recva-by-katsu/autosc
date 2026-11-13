@@ -11,6 +11,17 @@ red="$UI_BAD"; green="$UI_GOOD"; yell="$UI_WARN"; tyblue="$UI_ACCENT"
 NC="$UI_RESET"; RED="$UI_BAD"; GREEN="$UI_GOOD"; YELLOW="$UI_WARN"
 COLOR1="$UI_ACCENT"; COLBG1="$UI_BAR"; WH="$UI_TEXT"
 ###########- KatsuTun Premium -##########
+# Status OpenVPN dibaca dari unit systemd yang benar-benar ada (nama unit beda
+# antar versi paket: openvpn-server@ di 2.5+, openvpn@ di 2.4) dan dari port
+# yang benar-benar listen, supaya kartu status tidak asal menulis OFFLINE.
+ovpn_status() {  # $1 = nama instance (mis. server-tcp-1194), $2 = port
+    local unit
+    for unit in "openvpn-server@$1" "openvpn@$1"; do
+        [ "$(systemctl is-active "$unit" 2>/dev/null)" = "active" ] && { echo ONLINE; return; }
+    done
+    ss -lntup 2>/dev/null | grep -qE "[:.]$2[[:space:]]" && { echo ONLINE; return; }
+    echo OFFLINE
+}
 function status(){
 clear
 cek=$(service ssh status | grep active | cut -d ' ' -f5)
@@ -80,25 +91,19 @@ else
 restr="${red}OFFLINE${NC}"
 fi
 
-tcp="$(systemctl show --now openvpn-server@server-tcp-1194 --no-page)"
-status1=$(echo "${tcp}" | grep 'ActiveState=' | cut -f2 -d=)
-if [ "${status1}" = "active" ]; then
+if [ "$(ovpn_status server-tcp-1194 1194)" = "ONLINE" ]; then
 ovpntcp="${WH}ONLINE${NC}"
 else
 ovpntcp="${red}OFFLINE${NC}"
 fi
 
-udp="$(systemctl show --now openvpn-server@server-udp-2200 --no-page)"
-status2=$(echo "${udp}" | grep 'ActiveState=' | cut -f2 -d=)
-if [ "${status2}" = "active" ]; then
+if [ "$(ovpn_status server-udp-2200 2200)" = "ONLINE" ]; then
 ovpnudp="${WH}ONLINE${NC}"
 else
 ovpnudp="${red}OFFLINE${NC}"
 fi
 
-ovhp="$(systemctl show ohp.service --no-page)"
-status3=$(echo "${ovhp}" | grep 'ActiveState=' | cut -f2 -d=)
-if [ "${status3}" = "active" ]; then
+if [ "$(systemctl is-active ohp.service 2>/dev/null)" = "active" ]; then
 ohp="${WH}ONLINE${NC}"
 else
 ohp="${red}OFFLINE${NC}"
