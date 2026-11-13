@@ -224,3 +224,46 @@ dalam format `.zip.enc` menggunakan AES-256-CBC dengan PBKDF2; password itu
 diperlukan kembali saat restore. Kredensial penyimpanan dan SMTP hanya disimpan
 di `/etc/katsutun/backup.conf` (mode `600`), tidak pernah di repository.
 
+
+## Diagnosa game (Mobile Legends, PUBG, Free Fire, dll)
+
+Script ini menyediakan jalur **TCP** (SSH-WS, SSH-SSL, VMess/VLESS/Trojan,
+OpenVPN-TCP) dan satu jalur **UDP**: `badvpn-udpgw` di `127.0.0.1:7100-7300`
+(UDP-over-TCP) plus OpenVPN UDP `2200`. Game seluler hampir selalu memakai UDP
+untuk match/ping, jadi kalau UDPGW mati atau tidak diset di client, game bisa
+login tapi akan macet di loading atau "reconnecting".
+
+Periksa VPS dengan diagnostik read-only (tidak mengubah apa pun):
+
+```
+menu            -> 11 Server settings -> 11 Game check
+katsu-gamecheck            # teks berwarna
+katsu-gamecheck --plain    # tanpa warna (cocok untuk log)
+```
+
+Yang diperiksa: status layanan inti, port UDPGW yang benar-benar hidup
+(dibandingkan dengan isi `rc.local` supaya kelihatan mana yang mati setelah
+reboot), idle timeout `ws-stunnel`/`ws-dropbear` dan `proxy_read_timeout` nginx,
+aturan `squid` (`http_access deny all` bawaan template membuat client luar dapat
+403), `ip_forward` + `MASQUERADE` OpenVPN, MTU `tun0`, IP yang diblokir
+`fail2ban`/DDos Deflate, throttle `wondershaper`, cron reboot otomatis, status
+BBR, dan kesehatan DNS.
+
+Exit code `1` berarti ada temuan `FAIL` yang perlu diperbaiki lebih dulu.
+Tes offline: `bash tests/test-game-check.sh`.
+
+### Setelan client yang benar untuk game
+
+| Mode | Setelan |
+|---|---|
+| SSH-WS | port `80`/`443`, path `/`, **UDPGW `7300`** |
+| SSH-SSL-WS | port `2096`/`443`, **UDPGW `7300`** |
+| OpenVPN | `client-udp-2200.ovpn` (UDP native, paling stabil untuk game) |
+| SlowDNS | **jangan** untuk game: latency DNS tunneling terlalu tinggi |
+
+Catatan: template `data/squid.conf` yang ikut terpasang adalah contoh bawaan
+Ubuntu/Debian (`http_access allow localhost` + `http_access deny all`), sehingga
+proxy `3128` hanya bisa dipakai dari dalam VPS. Kalau proxy memang mau dibuka
+untuk client, tambahkan sendiri `http_access allow all` **beserta pembatasan
+IP** — proxy terbuka bisa dipakai pihak lain untuk spam/DDoS dan membuat IP VPS
+masuk blacklist.

@@ -21,7 +21,8 @@ data/menu-ss.sh                 /usr/bin/menu-ss                755
 data/menu-dns.sh                /usr/bin/menu-dns               755
 data/menu-theme.sh              /usr/bin/menu-theme             755
 data/menu-backup.sh             /usr/bin/menu-backup            755
-data/menu-set.sh                /usr/bin/menu-set               755
+data/menu-set.sh                 /usr/bin/menu-set               755
+data/game-check.sh               /usr/bin/katsu-gamecheck        755
 data/menu-api.sh                /usr/bin/menu-api               755
 data/menu-bot.sh                /usr/bin/menu-bot               755
 data/menu-ip.sh                 /usr/bin/menu-ip                755
