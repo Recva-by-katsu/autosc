@@ -16,6 +16,18 @@ red="$UI_BAD"; green="$UI_GOOD"; yell="$UI_WARN"; tyblue="$UI_ACCENT"
 NC="$UI_RESET"; RED="$UI_BAD"; GREEN="$UI_GOOD"; YELLOW="$UI_WARN"
 COLOR1="$UI_ACCENT"; COLBG1="$UI_BAR"; WH="$UI_TEXT"
 ###########- KatsuTun Premium -##########
+# SlowDNS berbagi akun dengan SSH: satu user, dua jalur. Blok di bawah hanya
+# muncul kalau service + keypair sudah siap, jadi akun tetap rapi saat SlowDNS
+# belum dipasang.
+sd_status() { menu-slowdns status 2>/dev/null; }
+sd_ready() {
+    command -v menu-slowdns >/dev/null 2>&1 || return 1
+    sd_status | grep -q '^installed=yes'
+}
+sd_account_block() {
+    sd_ready || return 0
+    menu-slowdns client-block
+}
 function addssh(){
 clear
 domen=`cat /etc/xray/domain`
@@ -127,6 +139,7 @@ ui_kv "SSL/TLS" "$ssl"  | tee -a /etc/log-create-user.log
 ui_kv "UDPGW" "7100-7300"  | tee -a /etc/log-create-user.log
 ui_card_end | tee -a /etc/log-create-user.log
 ui_copy "Payload WebSocket" "GET http://bug.com HTTP/1.1[crlf]Host: $domen[crlf]Upgrade: websocket[crlf][crlf]" | tee -a /etc/log-create-user.log
+sd_account_block | tee -a /etc/log-create-user.log
 else
 ui_title "SSH PANEL MENU" | tee -a /etc/log-create-user.log
 ui_card_start | tee -a /etc/log-create-user.log
@@ -145,6 +158,7 @@ ui_kv "SSL/TLS" "$ssl"  | tee -a /etc/log-create-user.log
 ui_kv "UDPGW" "7100-7300"  | tee -a /etc/log-create-user.log
 ui_card_end | tee -a /etc/log-create-user.log
 ui_copy "Payload WebSocket" "GET http://bug.com HTTP/1.1[crlf]Host: $domen[crlf]Upgrade: websocket[crlf][crlf]" | tee -a /etc/log-create-user.log
+sd_account_block | tee -a /etc/log-create-user.log
 fi
 echo -e ""
 ui_pause
@@ -480,14 +494,19 @@ ui_line "${WH}SSL/TLS    ${COLOR1}:${WH}$ssl"
 ui_line "${WH}UDPGW      ${COLOR1}: ${WH}7100-7300"
 ui_card_end
 ui_copy "Payload WebSocket" "GET http://bug.com HTTP/1.1[crlf]Host: $domen [crlf]User-Agent: [ua][crlf]Upgrade: websocket[crlf][crlf]Connection: Keep-Alive[crlf][crlf]"
+sd_account_block
 fi
 echo ""
 ui_pause
 menu-ssh
 }
 ui_screen "SSH & OPENVPN" "accounts, trials, online users"
-ui_card_start
-ui_options "01:Add account" "05:Delete account" "02:Trial account" "06:Renew account" "03:Online users" "07:Account list" "04:Enable WebSocket" ""
+ui_card_start "STATUS"
+ui_status_row "SSH WebSocket" "$([ -n "$(ps -ef | grep -v grep | grep sshws | awk '{print $2}')" ] && echo active || echo inactive)"
+ui_status_row "SlowDNS" "$(sd_status 2>/dev/null | sed -n 's/^active=//p')"
+ui_card_end
+ui_card_start "ACCOUNTS"
+ui_options "01:Add account" "05:Delete account" "02:Trial account" "06:Renew account" "03:Online users" "07:Account list" "04:Enable WebSocket" "08:SlowDNS"
 ui_card_end
 ui_back_hint
 ui_prompt
@@ -500,6 +519,7 @@ case $opt in
 05 | 5) clear ; delssh ;;
 06 | 6) clear ; renewssh ;;
 07 | 7) clear ; memberssh ;;
+08 | 8) clear ; menu-slowdns ;;
 00 | 0 | x | X) clear ; menu ;;
 *) clear ; menu-ssh ;;
 esac

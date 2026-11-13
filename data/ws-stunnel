@@ -18,7 +18,7 @@ PASS = ''
 
 # CONST
 BUFLEN = 4096 * 4
-TIMEOUT = 60
+TIMEOUT = 300
 DEFAULT_HOST = '127.0.0.1:69'
 RESPONSE = 'HTTP/1.1 101 <b><font color="red">KatsuTun Premium</font></b>\r\n\r\n'
 

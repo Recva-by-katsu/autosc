@@ -40,6 +40,13 @@ else
     ui_title "${BRAND:-KATSUTUN}" "$(cat /etc/xray/domain 2>/dev/null)"
 fi
 
+ui_card_start "STATUS"
+state() { systemctl is-active "$1" 2>/dev/null; }
+ui_status_row "PROXY (xray)" "$(state xray)"
+ui_status_row "NGINX" "$(state nginx)"
+ui_status_row "SSHWS" "$(state ws-stunnel)"
+ui_status_row "SLOWDNS" "$(state slowdns)"
+ui_card_end
 ui_card_start "ACCOUNTS"
 ui_options "01:SSH & OpenVPN" "02:VMess" "03:VLESS" "04:Trojan" "05:Shadowsocks" "06:DNS manager"
 ui_card_end

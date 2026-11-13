@@ -835,6 +835,12 @@ sed -i '$ i      # This is the proxy Xray For SSH Servers' /etc/nginx/conf.d/xra
 sed -i '$ i      location / {' /etc/nginx/conf.d/xray.conf
 sed -i '$ i                   proxy_redirect off;' /etc/nginx/conf.d/xray.conf
 sed -i '$ i                   proxy_pass http://127.0.0.1:700;' /etc/nginx/conf.d/xray.conf
+# Idle timeout: default nginx memutus upstream setelah 60 detik tanpa data,
+# sehingga sesi SSH-WS / game "reconnect" sendiri saat loading. 1 jam.
+sed -i '$ i                   proxy_read_timeout 3600s;' /etc/nginx/conf.d/xray.conf
+sed -i '$ i                   proxy_send_timeout 3600s;' /etc/nginx/conf.d/xray.conf
+sed -i '$ i                   proxy_buffering off;' /etc/nginx/conf.d/xray.conf
+sed -i '$ i                   proxy_socket_keepalive on;' /etc/nginx/conf.d/xray.conf
 sed -i '$ i                   proxy_http_version 1.1;' /etc/nginx/conf.d/xray.conf
 sed -i '$ i                   proxy_set_header Upgrade $http_upgrade;' /etc/nginx/conf.d/xray.conf
 sed -i '$ i                   proxy_set_header Connection "upgrade";' /etc/nginx/conf.d/xray.conf

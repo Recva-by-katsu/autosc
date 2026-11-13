@@ -14,6 +14,7 @@ data/menu-update.sh             /usr/bin/menu-update            755
 
 # --- panel menus
 data/menu-ssh.sh                /usr/bin/menu-ssh               755
+data/menu-slowdns.sh            /usr/bin/menu-slowdns           755
 data/menu-vmess.sh              /usr/bin/menu-vmess             755
 data/menu-vless.sh              /usr/bin/menu-vless             755
 data/menu-trojan.sh             /usr/bin/menu-trojan            755

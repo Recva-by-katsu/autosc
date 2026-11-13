@@ -86,6 +86,31 @@ check "$sshvpn" 'systemctl enable stunnel4' "stunnel4 di-enable agar hidup setel
 dropbear_sections=$(grep -c '^\[dropbear\]' "$sshvpn" || true)
 [ "$dropbear_sections" -le 1 ] && ok "section stunnel unik" || fail "section [dropbear] duplikat di stunnel.conf"
 
+
+echo "== nginx: idle timeout hanya di blok SSH-WS (location /)"
+# Blok location dibuat lewat rantai `sed -i '$ i ...'`; sisipan yang salah
+# anchor pernah mendarat di blok vmess. Uji hasil akhirnya, bukan teks skrip.
+ngtmp=$(mktemp -d)
+printf 'server {\n    listen 443;\n}\n' >"$ngtmp/xray.conf"
+grep -E "^sed -i '\\\$ i.*xray\.conf$" "$xray" | grep -vF "'\$ i'" >"$ngtmp/cmds.sh"
+sed -i "s#/etc/nginx/conf.d/xray.conf#$ngtmp/xray.conf#g" "$ngtmp/cmds.sh"
+bash "$ngtmp/cmds.sh" 2>/dev/null || true
+if [ "$(grep -c 'proxy_read_timeout 3600s' "$ngtmp/xray.conf")" = 1 ]; then
+    ok "proxy_read_timeout muncul tepat satu kali"
+else
+    fail "proxy_read_timeout harus tepat satu kali"
+fi
+if awk '/^location \/ \{/{flag=1} flag && /proxy_read_timeout 3600s/{found=1} flag && /^\}/{flag=0} END{exit !found}' "$ngtmp/xray.conf"; then
+    ok "timeout ada di dalam blok location / (SSH-WS)"
+else
+    fail "timeout tidak berada di blok SSH-WS"
+fi
+awk '/^location \/vmess \{/{flag=1} flag && /proxy_read_timeout/{found=1} flag && /^\}/{flag=0} END{exit found}' "$ngtmp/xray.conf" \
+    && ok "blok vmess tidak ikut diubah" || fail "blok vmess terkena sisipan"
+grep -q 'proxy_buffering off' "$ngtmp/xray.conf" && ok "proxy_buffering off terpasang" \
+    || fail "proxy_buffering off hilang"
+rm -rf "$ngtmp"
+
 echo
 if [ "$fails" -eq 0 ]; then
     echo "all checks passed"

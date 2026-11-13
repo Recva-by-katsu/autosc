@@ -110,7 +110,8 @@ def collect():
         row = memory[1].split()
         ram = f"{row[2]} / {row[1]} MB"
     states = {}
-    for label, service in (("PROXY", "xray"), ("NGINX", "nginx"), ("SSHWS", "ws-stunnel")):
+    for label, service in (("PROXY", "xray"), ("NGINX", "nginx"), ("SSHWS", "ws-stunnel"),
+                           ("SLOWDNS", "slowdns")):
         state = command("systemctl", "show", service, "--property=ActiveState", "--value")
         states[label] = "ON" if state == "active" else "OFF" if state else "N/A"
     config = read("/etc/xray/config.json")
@@ -159,7 +160,7 @@ class Panel:
 
     def edge(self, width, indent, bottom=False):
         left, right, rule = ("+", "+", "-") if self.ascii else (
-            ("└", "┘", "─") if bottom else ("┌", "┐", "─"))
+            ("╰", "╯", "─") if bottom else ("╭", "╮", "─"))
         self.lines.append(" " * indent + self.paint(left + rule * (width - 2) + right, "blue"))
 
     def row(self, segments, width, indent):
@@ -175,6 +176,15 @@ class Panel:
         self.lines.append(" " * indent + self.paint(vertical, "blue") + " " + output +
                           " " * (remaining + 1) + self.paint(vertical, "blue"))
 
+    def banner(self, text, tag=""):
+        inner = self.width - 4
+        tag = fit(tag, max(0, inner // 3))
+        room = inner - 1 - cells(tag) - 1 if tag else inner - 1
+        label = fit(text, max(0, room - 1))
+        head = (" " + label).ljust(max(1, room))
+        line = head + tag + " " if tag else head + " "
+        self.box([[(fit(line, inner).ljust(inner), "banner")]])
+
     def box(self, rows, inset=0):
         width = self.width - inset * 2
         self.edge(width, inset)
@@ -184,21 +194,24 @@ class Panel:
         self.lines.append("")
 
     def render(self, data):
-        title = fit(data["title"], self.width - 4)
-        self.box([[(title.center(self.width - 4), "banner")]])
+        self.banner(data["title"], "v" + data["version"] if data["version"] not in ("", "N/A") else "")
         self.box([[(f"{label:<8} : {data[key]}", "white")]
                   for label, key in (("SYSTEM", "system"), ("RAM", "ram"), ("UPTIME", "uptime"),
                                      ("IP VPS", "ip"), ("ISP", "isp"), ("DOMAIN", "domain"))])
-        status = []
-        for label, value in data["states"].items():
-            status += [(label + " : ", "gold"), (value, "green" if value == "ON" else "red"),
-                       (" | ", "green")]
-        status += [("GOOD" if all(v == "ON" for v in data["states"].values()) else "CHECK", "green")]
-        if self.width >= 58:
-            self.box([status])
+        cells_status = [[(f"{label:<8}: ", "gold"), (value, "green" if value == "ON" else "red")]
+                        for label, value in data["states"].items()]
+        overall = "GOOD" if all(v == "ON" for v in data["states"].values()) else "CHECK"
+        if self.width >= 52 and len(cells_status) > 1:
+            rows = []
+            for index in range(0, len(cells_status), 2):
+                pair = list(cells_status[index])
+                if index + 1 < len(cells_status):
+                    pair += [("  ", "white")] + cells_status[index + 1]
+                rows.append(pair)
+            rows.append([("OVERALL : ", "gold"), (overall, "green")])
+            self.box(rows)
         else:
-            self.box([[(label + " : ", "gold"), (value, "green" if value == "ON" else "red")]
-                      for label, value in data["states"].items()])
+            self.box(cells_status + [[("OVERALL : ", "gold"), (overall, "green")]])
         inset = 8 if self.width >= 58 else 2
         self.box([[((f"{label:<12} : {count}").center(self.width - inset * 2 - 4), "white")]
                   for label, count in zip(("SSHWS OVPN", "XRAY VMESS", "XRAY VLESS", "XRAY TROJN"),

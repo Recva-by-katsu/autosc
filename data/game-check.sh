@@ -5,15 +5,32 @@
 # Skrip ini READ-ONLY: hanya membaca status service, port, sysctl, iptables -S,
 # dan file konfigurasi. Tidak ada yang ditulis atau direstart.
 #
-# Pakai:  katsu-gamecheck [--plain]
+# Pakai:  katsu-gamecheck                 diagnosa saja (read-only)
+#         katsu-gamecheck --fix            perbaiki penyebab yang bisa otomatis
+#         katsu-gamecheck --fix --yes      perbaiki tanpa konfirmasi
+#         katsu-gamecheck --plain          tanpa warna (log)
 # Exit :  0 = tidak ada masalah fatal, 1 = ada temuan FAIL
 #
+# Tanpa --fix skrip ini read-only. Dengan --fix, setiap file yang diubah
+# disimpan dulu ke <file>.gamecheck.bak (hanya sekali, backup asli dipertahankan).
+#
 # GAMECHECK_ROOT hanya dipakai oleh tes offline (tests/test-game-check.sh) untuk
-# mengarahkan pembacaan file ke direktori sementara.
+# mengarahkan pembacaan/penulisan file ke direktori sementara.
 
 ROOT="${GAMECHECK_ROOT:-}"
 PLAIN=0
-[ "${1:-}" = "--plain" ] && PLAIN=1
+FIX=0
+ASSUME_YES=0
+for arg in "$@"; do
+    case "$arg" in
+        --plain) PLAIN=1 ;;
+        --fix)   FIX=1 ;;
+        --yes|-y) ASSUME_YES=1 ;;
+        --help|-h)
+            sed -n '2,20p' "$0" | sed 's/^# \?//'
+            exit 0 ;;
+    esac
+done
 [ -n "${NO_COLOR:-}" ] && PLAIN=1
 [ -t 1 ] || PLAIN=1
 
@@ -63,7 +80,243 @@ udp_listeners() {
     fi
 }
 
-printf '%sKatsuTun - Diagnosa Game (read-only)%s\n' "$C_DIM" "$C_END"
+
+########################################################################
+# Perbaikan otomatis (--fix)
+########################################################################
+FIXED=0
+CHANGED=()
+
+backup() {  # backup() PATH : simpan salinan asli sekali saja
+    local f=$1 bak
+    [ -f "$f" ] || return 0
+    bak="$f.gamecheck.bak"
+    [ -e "$bak" ] || cp -a "$f" "$bak" 2>/dev/null
+}
+
+changed() { FIXED=$((FIXED + 1)); CHANGED+=("$1"); printf '  %sFIX%s %s\n' "$C_OK" "$C_END" "$1"; }
+kept()    { printf '  %s--%s %s\n' "$C_DIM" "$C_END" "$1"; }
+svc_restart() { [ -n "$ROOT" ] && return 0; systemctl restart "$1" >/dev/null 2>&1; }
+
+fix_nginx_ws() {
+    local conf; conf=$(p /etc/nginx/conf.d/xray.conf)
+    [ -f "$conf" ] || { kept "xray.conf tidak ada, lewati timeout nginx"; return 0; }
+    if grep -q 'proxy_read_timeout' "$conf"; then
+        kept "nginx SSH-WS sudah punya proxy_read_timeout"
+        return 0
+    fi
+    grep -q 'proxy_pass http://127.0.0.1:700' "$conf" || { kept "blok SSH-WS tidak ditemukan"; return 0; }
+    backup "$conf"
+    sed -i '/proxy_pass http:\/\/127.0.0.1:700;/a\        proxy_read_timeout 3600s;\n        proxy_send_timeout 3600s;\n        proxy_buffering off;\n        proxy_socket_keepalive on;' "$conf"
+    if [ -z "$ROOT" ] && have nginx && ! nginx -t >/dev/null 2>&1; then
+        cp -a "$conf.gamecheck.bak" "$conf"
+        warn "nginx menolak konfigurasi baru, perubahan dibatalkan" "periksa: nginx -t"
+        return 0
+    fi
+    changed "nginx SSH-WS: proxy_read_timeout 3600s (dari default 60s)"
+    [ -n "$ROOT" ] || { nginx -s reload >/dev/null 2>&1; }
+}
+
+fix_udpgw() {
+    local unit; unit=$(p /etc/systemd/system/badvpn-udpgw@.service)
+    local bin; bin=$(p /usr/bin/badvpn-udpgw)
+    [ -x "$bin" ] || { kept "badvpn-udpgw belum ada, lewati unit UDPGW"; return 0; }
+    if [ ! -f "$unit" ]; then
+        mkdir -p "$(dirname "$unit")"
+        cat >"$unit" <<'UNIT'
+[Unit]
+Description=badvpn udpgw UDP-over-TCP on port %i
+After=network.target
+[Service]
+ExecStart=/usr/bin/badvpn-udpgw --listen-addr 127.0.0.1:%i --max-clients 500
+Restart=always
+RestartSec=2
+LimitNOFILE=65535
+[Install]
+WantedBy=multi-user.target
+UNIT
+        changed "unit badvpn-udpgw@.service dibuat (auto-restart)"
+    else
+        kept "unit badvpn-udpgw@.service sudah ada"
+    fi
+    # baris screen lama membuat port dobel dan tidak tahan reboot
+    if [ -f "$(p /etc/rc.local)" ] && grep -q 'badvpn-udpgw' "$(p /etc/rc.local)"; then
+        backup "$(p /etc/rc.local)"
+        sed -i '/badvpn-udpgw/d' "$(p /etc/rc.local)"
+        changed "rc.local: baris screen badvpn lama dibersihkan (diganti systemd)"
+    fi
+    [ -n "$ROOT" ] && return 0
+    systemctl daemon-reload >/dev/null 2>&1
+    local port started=0
+    for port in 7100 7200 7300; do
+        if ! systemctl is-active "badvpn-udpgw@$port" >/dev/null 2>&1; then
+            systemctl enable --now "badvpn-udpgw@$port" >/dev/null 2>&1 && started=$((started + 1))
+        fi
+    done
+    [ "$started" -gt 0 ] && changed "UDPGW dihidupkan lewat systemd ($started port baru: 7100-7300)"
+}
+
+fix_ws_timeout() {
+    local f t
+    for f in /usr/local/bin/ws-stunnel /usr/local/bin/ws-dropbear /usr/local/bin/ws-ovpn; do
+        [ -f "$(p "$f")" ] || continue
+        t=$(grep -m1 -E '^TIMEOUT[[:space:]]*=' "$(p "$f")" 2>/dev/null | grep -Eo '[0-9]+')
+        [ -n "$t" ] || continue
+        if [ "$t" -lt 100 ]; then
+            backup "$(p "$f")"
+            sed -i -E "s/^TIMEOUT[[:space:]]*=.*/TIMEOUT = 300/" "$(p "$f")"
+            changed "$(basename "$f"): idle timeout $((t * 3))s -> 900s"
+            svc_restart "$(basename "$f")"
+        else
+            kept "$(basename "$f"): idle timeout $((t * 3))s sudah cukup"
+        fi
+    done
+}
+
+fix_squid() {
+    local conf; conf=$(p /etc/squid/squid.conf)
+    [ -f "$conf" ] || { kept "squid tidak terpasang"; return 0; }
+    if grep -q 'http_access allow all' "$conf"; then
+        kept "squid sudah mengizinkan client luar"
+        return 0
+    fi
+    backup "$conf"
+    cat >"$conf" <<'SQUID'
+# KatsuTun Premium - squid proxy (dipasang oleh katsu-gamecheck --fix)
+http_port 3128
+visible_hostname katsutun
+via off
+forwarded_for delete
+
+acl all src all
+acl localhost src 127.0.0.1/32
+acl SSL_ports port 443
+acl SSL_ports port 1025-65535
+acl Safe_ports port 80 21 443 70 210 280 488 591 777 1025-65535
+acl CONNECT method CONNECT
+
+http_access deny !Safe_ports
+http_access deny CONNECT !SSL_ports
+http_access allow localhost manager
+http_access deny manager
+http_access allow localhost
+http_access allow all
+http_access deny all
+
+cache deny all
+access_log none
+cache_log /var/log/squid/cache.log
+SQUID
+    changed "squid: template bawaan (deny all) diganti config panel"
+    svc_restart squid
+}
+
+fix_fail2ban() {
+    local jail; jail=$(p /etc/fail2ban/jail.local)
+    if [ -f "$jail" ] && grep -qE '^[[:space:]]*ignoreip' "$jail"; then
+        kept "fail2ban sudah punya ignoreip"
+        return 0
+    fi
+    if [ -f "$jail" ]; then
+        backup "$jail"
+        printf '\n[DEFAULT]\nignoreip = 127.0.0.1/8 ::1\nbantime = 3600\nfindtime = 600\nmaxretry = 5\n' >>"$jail"
+        changed "fail2ban: ignoreip + bantime 1 jam ditambahkan ke jail.local"
+    else
+        [ -d "$(p /etc/fail2ban)" ] || { kept "fail2ban tidak terpasang"; return 0; }
+        mkdir -p "$(dirname "$jail")"
+        printf '# KatsuTun Premium - jail.local\n[DEFAULT]\nignoreip = 127.0.0.1/8 ::1\nbantime = 3600\nfindtime = 600\nmaxretry = 5\n\n[sshd]\nenabled = true\nmaxretry = 5\n' >"$jail"
+        changed "fail2ban: jail.local dibuat (ban 1 jam, whitelist localhost)"
+    fi
+    svc_restart fail2ban
+}
+
+fix_openvpn_mtu() {
+    local conf major minor ver
+    ver=$(openvpn --version 2>/dev/null | head -n1 | awk '{print $2}')
+    major=${ver%%.*}; minor=$(printf '%s' "$ver" | cut -d. -f2)
+    for conf in "$(p /etc/openvpn/server)"/*.conf; do
+        [ -f "$conf" ] || continue
+        local touched=0
+        if ! grep -q '^tun-mtu' "$conf"; then
+            backup "$conf"; echo 'tun-mtu 1400' >>"$conf"; touched=1
+        fi
+        if ! grep -q '^mssfix' "$conf"; then
+            backup "$conf"; echo 'mssfix 1360' >>"$conf"; touched=1
+        fi
+        if { [ "${major:-2}" -gt 2 ] || { [ "${major:-2}" -eq 2 ] && [ "${minor:-0}" -ge 6 ]; }; } \
+           && ! grep -q '^data-ciphers ' "$conf"; then
+            backup "$conf"
+            echo 'data-ciphers AES-256-GCM:AES-256-CBC' >>"$conf"
+            echo 'data-ciphers-fallback AES-256-CBC' >>"$conf"
+            touched=1
+        fi
+        [ "$touched" = 1 ] && changed "OpenVPN $(basename "$conf"): tun-mtu 1400 + mssfix 1360"
+    done
+    [ -n "$ROOT" ] || systemctl restart 'openvpn-server@*' >/dev/null 2>&1
+}
+
+fix_ip_forward() {
+    local f; f=$(p /etc/sysctl.d/99-katsutun-game.conf)
+    local cur; cur=$(sysctl -n net.ipv4.ip_forward 2>/dev/null)
+    if [ "$cur" = 1 ] && [ -f "$f" ]; then
+        kept "ip_forward=1 dan sudah persisten"
+        return 0
+    fi
+    mkdir -p "$(dirname "$f")"
+    {
+        printf '# KatsuTun Premium - tuning untuk game (dipasang katsu-gamecheck --fix)\n'
+        printf 'net.ipv4.ip_forward=1\n'
+        printf 'net.ipv4.tcp_low_latency=0\n'
+    } >"$f"
+    [ -n "$ROOT" ] || sysctl --system >/dev/null 2>&1
+    changed "ip_forward=1 dipersistenkan di /etc/sysctl.d/99-katsutun-game.conf"
+}
+
+fix_mss_clamp() {
+    [ -n "$ROOT" ] && { kept "MSS clamp dilewati pada tes offline"; return 0; }
+    have iptables || { kept "iptables tidak ada"; return 0; }
+    if iptables -t mangle -C FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu >/dev/null 2>&1; then
+        kept "MSS clamp sudah ada"
+        return 0
+    fi
+    if iptables -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu >/dev/null 2>&1; then
+        command -v netfilter-persistent >/dev/null 2>&1 && netfilter-persistent save >/dev/null 2>&1
+        changed "iptables: MSS clamp-to-PMTU ditambahkan (OpenVPN/game tidak blackhole)"
+    fi
+}
+
+run_fixes() {
+    section "Perbaikan otomatis"
+    fix_nginx_ws
+    fix_udpgw
+    fix_ws_timeout
+    fix_squid
+    fix_fail2ban
+    fix_openvpn_mtu
+    fix_ip_forward
+    fix_mss_clamp
+    printf '\n'
+    if [ "$FIXED" -eq 0 ]; then
+        printf '  %sTidak ada yang perlu diubah.%s\n' "$C_OK" "$C_END"
+    else
+        printf '  %s%d perbaikan diterapkan.%s Backup: <file>.gamecheck.bak\n' "$C_OK" "$FIXED" "$C_END"
+    fi
+}
+
+if [ "$FIX" = 1 ]; then
+    if [ "$ASSUME_YES" = 0 ] && [ -z "$ROOT" ] && [ -t 0 ]; then
+        printf 'Perbaiki otomatis konfigurasi? File yang diubah disimpan ke *.gamecheck.bak [y/N] '
+        read -r answer
+        case "$answer" in y|Y) ;; *) echo "Dibatalkan."; exit 0 ;; esac
+    fi
+    run_fixes
+fi
+
+if [ "$FIX" = 1 ]; then
+    printf '%sKatsuTun - Diagnosa Game (mode perbaikan)%s\n' "$C_DIM" "$C_END"
+else
+    printf '%sKatsuTun - Diagnosa Game (read-only, pakai --fix untuk memperbaiki)%s\n' "$C_DIM" "$C_END"
+fi
 printf 'host: %s  |  %s  |  %s\n' "$(hostname 2>/dev/null || echo -)" "$(uname -r 2>/dev/null || echo -)" "$(uname -m 2>/dev/null || echo -)"
 
 ########################################################################
@@ -365,6 +618,7 @@ if [ "$BAD_N" -eq 0 ] && [ "$WARN_N" -eq 0 ]; then
     printf '  - SlowDNS     : jangan untuk game, latency DNS tunneling terlalu tinggi\n'
 elif [ "$BAD_N" -gt 0 ]; then
     printf '\n  Perbaiki dulu item FAIL di atas, lalu jalankan ulang: katsu-gamecheck\n'
+    [ "$FIX" = 1 ] || printf '  Sebagian bisa otomatis: katsu-gamecheck --fix\n'
     exit 1
 else
     printf '\n  Ada %d peringatan. Item ber-tanda "gejala" adalah yang biasanya membuat game putus.\n' "$WARN_N"

@@ -22,6 +22,22 @@ unzip vpn.zip
 rm -f vpn.zip
 chown -R root:root /etc/openvpn/server/easy-rsa/
 
+# MTU 1400 + mssfix: jalur seluler sering membuang paket 1500 byte (PMTU
+# blackhole) sehingga game "connect" lalu diam. Angka ini juga dipakai
+# katsu-gamecheck --fix untuk instalasi lama.
+ovpn_ver=$(openvpn --version 2>/dev/null | head -n1 | awk '{print $2}')
+ovpn_major=${ovpn_ver%%.*}
+ovpn_minor=$(printf '%s' "$ovpn_ver" | cut -d. -f2)
+for conf in /etc/openvpn/server/server-*.conf; do
+    [ -f "$conf" ] || continue
+    grep -q '^tun-mtu' "$conf" || echo 'tun-mtu 1400' >>"$conf"
+    grep -q '^mssfix' "$conf" || echo 'mssfix 1360' >>"$conf"
+    if [ "${ovpn_major:-2}" -gt 2 ] || { [ "${ovpn_major:-2}" -eq 2 ] && [ "${ovpn_minor:-0}" -ge 6 ]; }; then
+        grep -q '^data-ciphers ' "$conf" || echo 'data-ciphers AES-256-GCM:AES-256-CBC' >>"$conf"
+        grep -q '^data-ciphers-fallback' "$conf" || echo 'data-ciphers-fallback AES-256-CBC' >>"$conf"
+    fi
+done
+
 cd
 mkdir -p /usr/lib/openvpn/
 cp /usr/lib/x86_64-linux-gnu/openvpn/plugins/openvpn-plugin-auth-pam.so /usr/lib/openvpn/openvpn-plugin-auth-pam.so
@@ -38,6 +54,9 @@ systemctl enable --now openvpn-server@server-udp-2200
 # aktifkan ip4 forwarding
 echo 1 > /proc/sys/net/ipv4/ip_forward
 sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/g' /etc/sysctl.conf
+grep -qE '^[[:space:]]*net\.ipv4\.ip_forward[[:space:]]*=[[:space:]]*1' /etc/sysctl.conf \
+    || echo 'net.ipv4.ip_forward=1' >>/etc/sysctl.conf
+sysctl -p >/dev/null 2>&1
 
 # Buat config client TCP 1194
 cat > /etc/openvpn/client-tcp-1194.ovpn <<-END

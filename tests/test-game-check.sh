@@ -184,6 +184,77 @@ else
     cat "$OUT_HEALTHY"
 fi
 
+
+# ---------------------------------------------------------------- skenario 3
+# --fix: memastikan semua penyebab game benar-benar diperbaiki dan idempoten.
+FIXROOT="$TMP/fixroot"
+common_files "$FIXROOT"
+mkdir -p "$FIXROOT/etc/fail2ban" "$FIXROOT/etc/sysctl.d" "$FIXROOT/etc/openvpn/server" \
+         "$FIXROOT/usr/bin" "$FIXROOT/etc/systemd/system"
+printf '#!/bin/sh\nexit 0\n' >"$FIXROOT/usr/bin/badvpn-udpgw"
+chmod +x "$FIXROOT/usr/bin/badvpn-udpgw"
+printf '#!/bin/sh\nTIMEOUT = 60\n' >"$FIXROOT/usr/local/bin/ws-stunnel"
+cat >"$FIXROOT/etc/nginx/conf.d/xray.conf" <<'EOF'
+location / {
+    proxy_pass http://127.0.0.1:700;
+    proxy_http_version 1.1;
+}
+EOF
+cat >"$FIXROOT/etc/squid/squid.conf" <<'EOF'
+#	WELCOME TO SQUID 4.6
+http_access allow localhost
+http_access deny all
+EOF
+cat >"$FIXROOT/etc/openvpn/server/server-udp-2200.conf" <<'EOF'
+port 2200
+proto udp
+EOF
+cat >"$FIXROOT/etc/rc.local" <<'EOF'
+#!/bin/sh -e
+screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7100 --max-clients 500
+exit 0
+EOF
+
+make_stubs "$TMP/bin-fix" "LISTEN 0 128 127.0.0.1:7100 0.0.0.0:*"
+FIXENV="GAMECHECK_ROOT=$FIXROOT PATH=$TMP/bin-fix:$PATH"
+OUT_FIX="$TMP/out-fix.txt"
+env $FIXENV bash "$SCRIPT" --fix --yes --plain >"$OUT_FIX" 2>&1
+CODE_FIX=$?
+
+echo "Skenario 3 (--fix):"
+check_contains "nginx mendapat proxy_read_timeout" "$FIXROOT/etc/nginx/conf.d/xray.conf" "proxy_read_timeout 3600s"
+check_contains "proxy_buffering dimatikan" "$FIXROOT/etc/nginx/conf.d/xray.conf" "proxy_buffering off"
+check_contains "unit udpgw dibuat" "$FIXROOT/etc/systemd/system/badvpn-udpgw@.service" "Restart=always"
+check_contains "udpgw memakai port template %i" "$FIXROOT/etc/systemd/system/badvpn-udpgw@.service" "%i"
+check_contains "ws-stunnel timeout dinaikkan" "$FIXROOT/usr/local/bin/ws-stunnel" "TIMEOUT = 300"
+check_contains "squid membuka akses client" "$FIXROOT/etc/squid/squid.conf" "http_access allow all"
+check_contains "squid mengizinkan CONNECT port game" "$FIXROOT/etc/squid/squid.conf" "acl SSL_ports port 1025-65535"
+check_contains "fail2ban jail.local dibuat" "$FIXROOT/etc/fail2ban/jail.local" "ignoreip"
+check_contains "openvpn mtu 1400" "$FIXROOT/etc/openvpn/server/server-udp-2200.conf" "tun-mtu 1400"
+check_contains "openvpn mssfix" "$FIXROOT/etc/openvpn/server/server-udp-2200.conf" "mssfix 1360"
+check_contains "ip_forward persisten" "$FIXROOT/etc/sysctl.d/99-katsutun-game.conf" "net.ipv4.ip_forward=1"
+check_absent "rc.local dibersihkan dari screen badvpn" "$FIXROOT/etc/rc.local" "badvpn-udpgw"
+test -f "$FIXROOT/etc/nginx/conf.d/xray.conf.gamecheck.bak" \
+    && echo "  ok   backup file asli dibuat" || { echo "  FAIL backup tidak dibuat"; fail=$((fail + 1)); }
+
+# idempotensi: jalan kedua tidak boleh menduplikasi baris
+OUT_FIX2="$TMP/out-fix2.txt"
+env $FIXENV bash "$SCRIPT" --fix --yes --plain >"$OUT_FIX2" 2>&1
+DUP=$(grep -c 'proxy_read_timeout' "$FIXROOT/etc/nginx/conf.d/xray.conf")
+[ "$DUP" = 1 ] && echo "  ok   nginx tidak terduplikasi saat fix diulang" \
+    || { echo "  FAIL proxy_read_timeout muncul $DUP kali"; fail=$((fail + 1)); }
+DUP2=$(grep -c 'tun-mtu' "$FIXROOT/etc/openvpn/server/server-udp-2200.conf")
+[ "$DUP2" = 1 ] && echo "  ok   openvpn tidak terduplikasi" \
+    || { echo "  FAIL tun-mtu muncul $DUP2 kali"; fail=$((fail + 1)); }
+grep -q "Tidak ada yang perlu diubah" "$OUT_FIX2" \
+    && echo "  ok   jalan kedua melaporkan tidak ada perubahan" \
+    || { echo "  FAIL jalan kedua masih mengubah sesuatu"; fail=$((fail + 1)); }
+if [ "$CODE_FIX" -eq 1 ]; then
+    echo "  ok   exit 1 karena masih ada FAIL tersisa"
+else
+    echo "  FAIL exit $CODE_FIX (diagnosa lanjutan tetap melaporkan FAIL)"; fail=$((fail + 1))
+fi
+
 echo
 if [ "$fail" -eq 0 ]; then
     echo "Semua tes lolos."

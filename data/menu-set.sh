@@ -247,6 +247,11 @@ case $opt in
 11) clear
     if command -v katsu-gamecheck >/dev/null 2>&1; then
         katsu-gamecheck || true
+        ui_prompt "Terapkan perbaikan otomatis? (y/N):"
+        read -r fixyn
+        case "$fixyn" in
+            y|Y) clear; katsu-gamecheck --fix --yes || true ;;
+        esac
     else
         echo "katsu-gamecheck belum terpasang. Jalankan: katsu-update apply --force"
     fi
