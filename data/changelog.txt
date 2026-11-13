@@ -12,4 +12,21 @@ KatsuTun Premium - changelog
   sudut membulat, footer konsisten, gap antar kolom lebih rapi.
 - katsu-gamecheck: diagnostik game read-only + mode --fix.
 
+1.4.1
+- katsu-gamecheck: FAIL "rc.local tidak memuat badvpn-udpgw" tidak lagi muncul
+  pada VPS yang sudah migrasi ke unit systemd (autostart dinilai dari systemd
+  atau rc.local, mana yang dipakai).
+- Parser cron: assignment (SHELL=, PATH=) tidak lagi dianggap jadwal; reboot
+  harian 03:00 dilaporkan normal, hanya interval < 6 jam yang diperingatkan.
+- wondershaper: /home/limit yang basi tidak lagi dianggap throttle aktif
+  (dicek lewat service dan qdisc tc).
+- Unit openvpn-server@ yang "activating" kini menampilkan error jurnal +
+  terjemahannya (comp-lzo di OpenVPN 2.6, TUN/TAP tidak ada, port bentrok,
+  plugin PAM, file sertifikat hilang).
+- --fix: menghentikan proses badvpn lama dari `screen` (penyebab unit systemd
+  berputar di "activating"), melaporkan port UDPGW yang benar-benar aktif,
+  memverifikasi OpenVPN setelah restart, dan memasang sshd
+  ClientAliveInterval 30 + ClientAliveCountMax 6.
+- --fix kini ringkas (hanya perubahan + sisa temuan); --verbose untuk detail.
+
 Update Your Script

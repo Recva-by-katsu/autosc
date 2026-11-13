@@ -39,8 +39,9 @@ make_stubs() { # <bindir> <ss-output>
     cat >"$bin/systemctl" <<'EOF'
 #!/bin/sh
 case "$*" in
-    *list-units*) echo ""; exit 0 ;;
-    *is-active*)  echo active; exit 0 ;;
+    *list-units*)  echo ""; exit 0 ;;
+    *wondershaper*) echo inactive; exit 3 ;;
+    *is-active*)   echo active; exit 0 ;;
 esac
 exit 0
 EOF
@@ -254,6 +255,108 @@ if [ "$CODE_FIX" -eq 1 ]; then
 else
     echo "  FAIL exit $CODE_FIX (diagnosa lanjutan tetap melaporkan FAIL)"; fail=$((fail + 1))
 fi
+
+
+# ---------------------------------------------------------------- skenario 4
+# VPS yang sudah migrasi ke systemd: rc.local SUDAH dibersihkan. Ini regresi
+# nyata - dulu dilaporkan FAIL "rc.local tidak memuat badvpn-udpgw".
+MIG="$TMP/migrated"
+common_files "$MIG"
+mkdir -p "$MIG/etc/systemd/system" "$MIG/etc/cron.d" "$MIG/home" "$MIG/usr/bin"
+printf '#!/bin/sh\nexit 0\n' >"$MIG/usr/bin/badvpn-udpgw"; chmod +x "$MIG/usr/bin/badvpn-udpgw"
+printf '[Unit]\nDescription=%s\n' "badvpn %i" >"$MIG/etc/systemd/system/badvpn-udpgw@.service"
+cat >"$MIG/etc/rc.local" <<'EOF'
+#!/bin/sh -e
+exit 0
+EOF
+printf 'SHELL=/bin/sh\nPATH=/usr/bin:/bin\n0 3 * * * root /sbin/reboot\n' >"$MIG/etc/cron.d/re_otm"
+printf 'SHELL=/bin/sh\n*/30 * * * * root /usr/bin/rebootvps\n' >"$MIG/etc/cron.d/auto_reboot"
+printf 'start\n' >"$MIG/home/limit"
+mkdir -p "$MIG/home/limit.d" 2>/dev/null
+rm -rf "$MIG/home/limit.d"
+cat >"$MIG/etc/nginx/conf.d/xray.conf" <<'EOF'
+location / {
+    proxy_pass http://127.0.0.1:700;
+    proxy_read_timeout 3600s;
+}
+EOF
+make_stubs "$TMP/bin-mig" "LISTEN 0 128 127.0.0.1:7100 0.0.0.0:*
+LISTEN 0 128 127.0.0.1:7200 0.0.0.0:*
+LISTEN 0 128 127.0.0.1:7300 0.0.0.0:*"
+
+OUT_MIG="$TMP/out-migrated.txt"
+GAMECHECK_ROOT="$MIG" PATH="$TMP/bin-mig:$PATH" bash "$SCRIPT" --plain >"$OUT_MIG" 2>&1
+echo "Skenario 4 (sudah migrasi ke systemd):"
+check_absent "rc.local tanpa badvpn bukan FAIL" "$OUT_MIG" "rc.local tidak memuat badvpn-udpgw"
+check_absent "rc.local tanpa badvpn bukan FAIL (versi baru)" "$OUT_MIG" "UDPGW tidak punya autostart"
+check_contains "autostart systemd dikenali" "$OUT_MIG" "autostart UDPGW lewat systemd"
+count_frequent=$(grep -c "reboot otomatis terlalu sering" "$OUT_MIG" || true)
+[ "$count_frequent" = 1 ] \
+    && echo "  ok   hanya reboot tiap 30 menit yang diperingatkan" \
+    || { echo "  FAIL jumlah peringatan reboot = $count_frequent (harus 1)"; fail=$((fail + 1)); }
+check_contains "reboot harian dilaporkan sebagai normal" "$OUT_MIG" "reboot otomatis: harian 03:00"
+check_contains "reboot tiap 30 menit tetap diperingatkan" "$OUT_MIG" "reboot otomatis terlalu sering"
+check_absent "penanda /home/limit basi tidak diperingatkan" "$OUT_MIG" "limit bandwidth (wondershaper/tc) aktif"
+check_contains "penanda basi dilaporkan aman" "$OUT_MIG" "penanda /home/limit masih ada tapi throttle tidak aktif"
+
+# ---------------------------------------------------------------- skenario 5
+# --fix juga memasang ClientAliveInterval sshd, dan mode fix tidak membanjiri
+# layar dengan baris OK.
+FIX2="$TMP/fix2"
+common_files "$FIX2"
+cp "$MIG/etc/systemd/system/badvpn-udpgw@.service" "$FIX2/" 2>/dev/null || true
+mkdir -p "$FIX2/etc/systemd/system" "$FIX2/usr/bin"
+printf '[Unit]\n' >"$FIX2/etc/systemd/system/badvpn-udpgw@.service"
+printf '#!/bin/sh\nexit 0\n' >"$FIX2/usr/bin/badvpn-udpgw"; chmod +x "$FIX2/usr/bin/badvpn-udpgw"
+printf 'Port 22\n' >"$FIX2/etc/ssh/sshd_config"
+OUT_FIX3="$TMP/out-fix3.txt"
+GAMECHECK_ROOT="$FIX2" PATH="$TMP/bin-mig:$PATH" bash "$SCRIPT" --fix --yes --plain >"$OUT_FIX3" 2>&1
+echo "Skenario 5 (--fix lanjutan):"
+check_contains "sshd ClientAliveInterval dipasang" "$FIX2/etc/ssh/sshd_config" "ClientAliveInterval 30"
+check_contains "ClientAliveCountMax ikut" "$FIX2/etc/ssh/sshd_config" "ClientAliveCountMax 6"
+check_absent "mode fix menyembunyikan baris OK" "$OUT_FIX3" "  OK   nginx: active"
+check_contains "mode fix tetap menampilkan ringkasan" "$OUT_FIX3" "OK:"
+
+
+# ---------------------------------------------------------------- skenario 6
+# OpenVPN stuck "activating": error jurnal harus ikut dilaporkan + diterjemahkan.
+OVPN="$TMP/ovpn"
+common_files "$OVPN"
+mkdir -p "$OVPN/etc/openvpn/server" "$OVPN/etc/systemd/system" "$OVPN/usr/bin"
+printf 'port 2200\nproto udp\n' >"$OVPN/etc/openvpn/server/server-udp-2200.conf"
+printf '#[Unit]\n' >"$OVPN/etc/systemd/system/badvpn-udpgw@.service"
+printf '#!/bin/sh\nexit 0\n' >"$OVPN/usr/bin/badvpn-udpgw"; chmod +x "$OVPN/usr/bin/badvpn-udpgw"
+make_stubs "$TMP/bin-ovpn" "LISTEN 0 128 127.0.0.1:7100 0.0.0.0:*"
+cat >"$TMP/bin-ovpn/systemctl" <<'EOF'
+#!/bin/sh
+case "$*" in
+    *list-units*openvpn*) echo "openvpn-server@server-udp-2200.service loaded activating auto-restart"; exit 0 ;;
+    *list-units*) echo ""; exit 0 ;;
+    *openvpn*) echo activating; exit 3 ;;
+    *wondershaper*) echo inactive; exit 3 ;;
+    *is-active*) echo active; exit 0 ;;
+esac
+exit 0
+EOF
+chmod +x "$TMP/bin-ovpn/systemctl"
+cat >"$TMP/bin-ovpn/journalctl" <<'EOF'
+#!/bin/sh
+echo "Options error: --comp-lzo is not supported in this version"
+EOF
+chmod +x "$TMP/bin-ovpn/journalctl"
+cat >"$TMP/bin-ovpn/ss" <<'EOF'
+#!/bin/sh
+echo "LISTEN 0 128 127.0.0.1:7100 0.0.0.0:*"
+EOF
+chmod +x "$TMP/bin-ovpn/ss"
+
+OUT_OVPN="$TMP/out-ovpn.txt"
+GAMECHECK_ROOT="$OVPN" PATH="$TMP/bin-ovpn:$PATH" bash "$SCRIPT" --plain >"$OUT_OVPN" 2>&1
+echo "Skenario 6 (OpenVPN stuck activating):"
+check_contains "unit yang tidak siap jadi WARN" "$OUT_OVPN" "openvpn-server@server-udp-2200.service: activating"
+check_contains "error jurnal ikut ditampilkan" "$OUT_OVPN" "comp-lzo is not supported"
+check_contains "error diterjemahkan jadi saran" "$OUT_OVPN" "menolak comp-lzo"
+check_contains "sisa temuan dirangkum saat ada masalah" "$OUT_OVPN" "-> proses OpenVPN tidak pernah siap"
 
 echo
 if [ "$fail" -eq 0 ]; then

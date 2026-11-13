@@ -290,6 +290,7 @@ menu            -> 11 Server settings -> 11 Game check
 katsu-gamecheck              # diagnosa saja (read-only)
 katsu-gamecheck --fix        # perbaiki otomatis (minta konfirmasi)
 katsu-gamecheck --fix --yes  # perbaiki tanpa konfirmasi
+katsu-gamecheck --fix --verbose  # perbaiki + tampilkan semua detail
 katsu-gamecheck --plain      # tanpa warna (cocok untuk log)
 ```
 
@@ -311,7 +312,14 @@ SSH-WS nginx (default 60 detik memutus game saat loading), unit systemd
 15 menit, config squid panel (bukan template `deny all`), `jail.local` fail2ban
 dengan `ignoreip` + ban 1 jam, `tun-mtu 1400` + `mssfix 1360` (+`data-ciphers`
 saat OpenVPN 2.6) untuk `tun0`, `ip_forward=1` persisten, dan MSS clamp-to-PMTU.
-Semua langkah idempoten — aman dijalankan berkali-kali.
+Semua langkah idempoten — aman dijalankan berkali-kali. Dalam mode `--fix`
+hanya baris perubahan dan sisa masalah yang dicetak, lalu dirangkum di bagian
+"Sisa temuan"; pakai `--verbose` untuk laporan lengkap.
+
+Kalau unit `openvpn-server@*` berstatus `activating`, penyebab aslinya
+ditampilkan dari `journalctl` beserta terjemahannya (mis. `comp-lzo` ditolak
+OpenVPN 2.6, `/dev/net/tun` tidak ada di OpenVZ/LXC, port bentrok, plugin PAM
+hilang, atau file sertifikat hilang).
 
 Tes offline: `bash tests/test-game-check.sh` (skenario rusak, sehat, dan `--fix`).
 
