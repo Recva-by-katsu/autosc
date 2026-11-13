@@ -30,6 +30,10 @@ ovpn_major=${ovpn_ver%%.*}
 ovpn_minor=$(printf '%s' "$ovpn_ver" | cut -d. -f2)
 for conf in /etc/openvpn/server/server-*.conf; do
     [ -f "$conf" ] || continue
+    # conf bawaan data/vpn.zip tidak diakhiri newline. Tanpa baris ini, append
+    # berikutnya menempel ke baris terakhir ("verb 3tun-mtu 1400") dan OpenVPN
+    # menolak start dengan "Options error ... :24: verb".
+    if [ -s "$conf" ] && [ -n "$(tail -c 1 "$conf")" ]; then printf '\n' >>"$conf"; fi
     grep -q '^tun-mtu' "$conf" || echo 'tun-mtu 1400' >>"$conf"
     grep -q '^mssfix' "$conf" || echo 'mssfix 1360' >>"$conf"
     if [ "${ovpn_major:-2}" -gt 2 ] || { [ "${ovpn_major:-2}" -eq 2 ] && [ "${ovpn_minor:-0}" -ge 6 ]; }; then

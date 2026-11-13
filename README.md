@@ -323,6 +323,11 @@ hilang, atau file sertifikat hilang). Kalau jurnalnya kosong, `--fix` memvalidas
 config langsung (`openvpn --test-crypto`) sehingga sebab yang sebenarnya tetap
 kelihatan.
 
+Kalau unit OpenVPN berhenti dengan `Options error ... :24: verb`, itu tanda conf
+sudah tertambal MTU saat file belum diakhiri newline (`verb 3` + `tun-mtu 1400`
+menjadi satu baris). `--fix` merapikannya: newline akhir dipastikan, opsi yang
+menempel dipisah ke baris sendiri, dan opsi MTU ganda dibuang.
+
 `--fix` juga memperbaiki OpenVPN yang mati: `comp-lzo` yang ditolak versi
 OpenVPN dimatikan di server **dan** di semua client `.ovpn` (`/etc/openvpn/`,
 `/home/vps/public_html/`) — client perlu unduh ulang config — path

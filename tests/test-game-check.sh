@@ -430,6 +430,62 @@ ls -ld "$OV2/etc/openvpn/server-udp-2200.conf" >/dev/null 2>&1 \
     && printf '  ok   symlink /etc/openvpn/server-udp-2200.conf ada\n' \
     || { printf '  FAIL symlink /etc/openvpn/server-udp-2200.conf tidak dibuat\n'; fail=$((fail + 1)); }
 
+
+# ---------------------------------------------------------------- skenario 9
+# Regresi v1.4.0/1.4.1: conf dari data/vpn.zip tidak diakhiri newline, sehingga
+# `echo 'tun-mtu 1400' >> conf` menempel jadi "verb 3tun-mtu 1400" dan OpenVPN
+# 2.4 menolak start: "Options error ... in conf:24: verb". --fix harus merapikan.
+OV3="$(mktemp -d)"
+mkdir -p "$OV3/etc/openvpn/server" "$OV3/etc/systemd/system" "$OV3/usr/bin"
+printf '#!/bin/sh\nexit 0\n' >"$OV3/usr/bin/badvpn-udpgw"; chmod +x "$OV3/usr/bin/badvpn-udpgw"
+printf '[Unit]\n' >"$OV3/etc/systemd/system/badvpn-udpgw@.service"
+# salinan persis isi zip: 24 baris, baris terakhir "verb 3" tanpa newline
+{
+    printf 'port 1194\nproto tcp\ndev tun\nca ca.crt\ncert server.crt\nkey server.key\n'
+    printf 'dh dh2048.pem\nplugin /usr/lib/openvpn/openvpn-plugin-auth-pam.so login\n'
+    printf 'verify-client-cert none\nusername-as-common-name\nserver 10.6.0.0 255.255.255.0\n'
+    printf 'ifconfig-pool-persist ipp.txt\npush "redirect-gateway def1 bypass-dhcp"\n'
+    printf 'push "dhcp-option DNS 8.8.8.8"\npush "dhcp-option DNS 8.8.4.4"\n'
+    printf 'remote-cert-tls server\ncipher AES-256-CBC\nauth SHA256\nkeepalive 5 30\n'
+    printf 'comp-lzo\npersist-key\npersist-tun\nstatus openvpn-tcp.log\nverb 3'
+} >"$OV3/etc/openvpn/server/server-tcp-1194.conf"
+make_stubs "$TMP/bin-ov3" "LISTEN 0 128 127.0.0.1:7100 0.0.0.0:*"
+cat >"$TMP/bin-ov3/openvpn" <<'STUBEOF'
+#!/bin/sh
+# tiruan OpenVPN 2.4.12: menolak baris yang opsinya menempel ("verb 3tun-mtu")
+case "$*" in
+    *--version*) echo "OpenVPN 2.4.12 x86_64-pc-linux-gnu"; exit 0 ;;
+    *--test-crypto*) ;;
+    *) exit 0 ;;
+esac
+conf=""; prev=""
+for a in "$@"; do [ "$prev" = "--config" ] && conf=$a; prev=$a; done
+if grep -qE '^verb [0-9]+[a-z]' "$conf" 2>/dev/null; then
+    echo "Options error: Unrecognized option or missing or extra parameter(s) in $conf:24: verb (2.4.12)"
+    exit 1
+fi
+exit 0
+STUBEOF
+chmod +x "$TMP/bin-ov3/openvpn"
+
+OUT_OV3="$TMP/out-ov3.txt"
+GAMECHECK_ROOT="$OV3" PATH="$TMP/bin-ov3:$PATH" bash "$SCRIPT" --fix --yes --plain >"$OUT_OV3" 2>&1
+CONF3="$OV3/etc/openvpn/server/server-tcp-1194.conf"
+echo "Skenario 9 (conf tanpa newline akhir: verb 3tun-mtu 1400):"
+check_contains "baris verb kembali sendiri" "$CONF3" "^verb 3$"
+check_contains "tun-mtu jadi baris terpisah" "$CONF3" "^tun-mtu 1400$"
+check_absent "tidak ada opsi menempel lagi" "$CONF3" "^verb 3tun-mtu"
+if [ -z "$(tail -c 1 "$CONF3")" ] || [ "$(tail -c 1 "$CONF3" | od -An -c | tr -d ' ')" = "\\n" ]; then
+    printf '  ok   file diakhiri newline\n'
+else
+    printf '  FAIL file masih tanpa newline akhir\n'; fail=$((fail + 1))
+fi
+check_contains "perapian dilaporkan" "$OUT_OV3" "config dirapikan"
+check_absent "tidak ada WARN gagal divalidasi" "$OUT_OV3" "gagal divalidasi"
+grep -c '^tun-mtu 1400$' "$CONF3" 2>/dev/null | grep -qx 1 \
+    && printf '  ok   tun-mtu hanya satu baris\n' \
+    || { printf '  FAIL tun-mtu muncul lebih dari sekali\n'; fail=$((fail + 1)); }
+
 echo
 if [ "$fail" -eq 0 ]; then
     echo "Semua tes lolos."

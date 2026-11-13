@@ -285,13 +285,22 @@ ovpn_validate_conf() {  # $1 = path conf ; cetak baris error pertama, kosong = v
     local conf=$1
     [ -f "$conf" ] || { echo "file config tidak ada: $conf"; return 0; }
     have openvpn || return 0
-    local out
+    local out err
     # --test-crypto mem-parse seluruh opsi (termasuk file cert/dh) lalu keluar,
     # jadi tidak membuka tun dan tidak berebut port dengan service yang jalan.
     out=$(timeout 12 openvpn --config "$conf" --test-crypto --verb 3 </dev/null 2>&1 || true)
-    printf '%s\n' "$out" \
+    err=$(printf '%s\n' "$out" \
         | grep -iE 'Options error|Exiting due to fatal error|Cannot open|Cannot load|PLUGIN_INIT|not supported|unrecognized option' \
-        | head -n1 | cut -c1-200
+        | grep -viE 'test.?crypto' | head -n1 | cut -c1-200)
+    # --test-crypto tidak didukung semua build: pakai jalur kedua yang hanya
+    # mem-parse opsi, supaya config sehat tidak dilaporkan gagal.
+    if [ -z "$err" ]; then
+        out=$(timeout 12 openvpn --config "$conf" --show-ciphers </dev/null 2>&1 || true)
+        err=$(printf '%s\n' "$out" \
+            | grep -iE 'Options error|Unrecognized option|Exiting due to fatal error' \
+            | head -n1 | cut -c1-200)
+    fi
+    printf '%s' "$err"
 }
 
 ovpn_unit_prefix() {  # template systemd yang tersedia: openvpn-server@ (2.5+) / openvpn@ (2.4)
@@ -302,6 +311,27 @@ ovpn_unit_prefix() {  # template systemd yang tersedia: openvpn-server@ (2.5+) /
         printf 'openvpn@'; return 0
     fi
     printf ''
+}
+
+ovpn_conf_repair() {  # $1 = conf ; rapikan newline akhir, opsi menempel, duplikat
+    local conf=$1 out
+    [ -f "$conf" ] || return 0
+    out=$(mktemp) || return 0
+    {
+        cat "$conf"
+        # conf di data/vpn.zip tidak diakhiri newline. Tanpa ini, append apa pun
+        # (tun-mtu/mssfix) menempel ke baris terakhir: "verb 3tun-mtu 1400".
+        if [ -s "$conf" ] && [ -n "$(tail -c 1 "$conf")" ]; then printf '\n'; fi
+    } \
+        | sed -E 's/([0-9])(tun-mtu|mssfix|data-ciphers-fallback|data-ciphers)([[:space:]])/\1\n\2\3/g' \
+        | awk '$1=="tun-mtu"||$1=="mssfix"||$1=="data-ciphers"||$1=="data-ciphers-fallback"{if (seen[$1]++) next} {print}' \
+        >"$out"
+    if ! cmp -s "$out" "$conf" 2>/dev/null; then
+        backup "$conf"
+        cat "$out" >"$conf"
+        changed "$(basename "$conf"): config dirapikan (newline akhir / opsi yang menempel)"
+    fi
+    rm -f "$out"
 }
 
 ovpn_pam_plugin() {  # cari lokasi openvpn-plugin-auth-pam.so yang sebenarnya
@@ -333,6 +363,7 @@ fix_openvpn_mtu() {
     major=${ver%%.*}; minor=$(printf '%s' "$ver" | cut -d. -f2)
     for conf in "$(p /etc/openvpn/server)"/*.conf; do
         [ -f "$conf" ] || continue
+        ovpn_conf_repair "$conf"
         local touched=0
         if ! grep -q '^tun-mtu' "$conf"; then
             backup "$conf"; echo 'tun-mtu 1400' >>"$conf"; touched=1
@@ -349,16 +380,8 @@ fix_openvpn_mtu() {
         fi
         [ "$touched" = 1 ] && changed "OpenVPN $(basename "$conf"): tun-mtu 1400 + mssfix 1360"
     done
-    [ -n "$ROOT" ] && return 0
-    systemctl restart 'openvpn-server@*' 'openvpn@*' >/dev/null 2>&1
-    sleep 2
-    local unit st err
-    for unit in $(systemctl list-units --type=service --all --no-legend 'openvpn-server@*' 2>/dev/null | awk '{print $1}'); do
-        st=$(systemctl is-active "$unit" 2>/dev/null)
-        [ "$st" = active ] && continue
-        err=$(journalctl -u "$unit" -n 8 --no-pager 2>/dev/null | grep -viE '^-- |^$' | tail -n 1)
-        warn "$unit tidak jalan setelah restart ($st)" "${err:-cek: journalctl -u $unit -n 50}"
-    done
+    # Restart + verifikasi dilakukan sekali di fix_openvpn_health supaya tidak
+    # ada WARN ganda untuk penyebab yang sama.
 }
 
 fix_sshd() {
