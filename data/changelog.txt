@@ -30,3 +30,21 @@ KatsuTun Premium - changelog
 - --fix kini ringkas (hanya perubahan + sisa temuan); --verbose untuk detail.
 
 Update Your Script
+
+1.4.2
+- Kartu SERVER STATUS tidak lagi asal menulis OVPN TCP/UDP OFFLINE: status
+  dibaca dari unit systemd yang benar-benar ada (openvpn-server@ di OpenVPN
+  2.5+, openvpn@ di 2.4) dan dari port yang benar-benar listen (1194/2200).
+- katsu-gamecheck --fix sekarang menyebut sebab nyata OpenVPN gagal: config
+  divalidasi (openvpn --test-crypto), bukan cuma membaca jurnal yang sering
+  kosong.
+- --fix memperbaiki yang bisa otomatis: comp-lzo yang ditolak versi OpenVPN
+  dimatikan di server sekaligus di semua client .ovpn (client harus unduh
+  ulang config), dan path plugin openvpn-plugin-auth-pam.so yang salah
+  dibetulkan sesuai lokasi paket.
+- VPS dengan paket OpenVPN 2.4 (template openvpn@): config di
+  /etc/openvpn/server/*.conf otomatis disymlink ke /etc/openvpn/<nama>.conf
+  supaya unit-nya bisa dijalankan.
+- Diagnostik: kalau unit OpenVPN mati tanpa error di jurnal, tampil saran
+  menjalankan --fix; kalau config ada tapi unit systemd tidak ada, itu
+  dilaporkan sebagai temuan.

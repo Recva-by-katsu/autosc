@@ -358,6 +358,78 @@ check_contains "error jurnal ikut ditampilkan" "$OUT_OVPN" "comp-lzo is not supp
 check_contains "error diterjemahkan jadi saran" "$OUT_OVPN" "menolak comp-lzo"
 check_contains "sisa temuan dirangkum saat ada masalah" "$OUT_OVPN" "-> proses OpenVPN tidak pernah siap"
 
+
+# ---------------------------------------------------------------- skenario 7
+# OVPN offline: validator harus menemukan sebab sebenarnya lalu memperbaikinya
+# (comp-lzo ditolak + path plugin PAM salah), dan client .ovpn ikut disamakan.
+OV="$(mktemp -d)"
+mkdir -p "$OV/etc/openvpn/server" "$OV/etc/openvpn" "$OV/home/vps/public_html" \
+         "$OV/usr/lib/x86_64-linux-gnu/openvpn/plugins" "$OV/etc/systemd/system" "$OV/usr/bin"
+: >"$OV/usr/lib/x86_64-linux-gnu/openvpn/plugins/openvpn-plugin-auth-pam.so"
+printf 'port 2200\nproto udp\ncomp-lzo\nauth-user-pass-verify x\n' >"$OV/etc/openvpn/server/server-udp-2200.conf"
+printf 'port 1194\nproto tcp\nplugin /usr/lib/openvpn/openvpn-plugin-auth-pam.so login\n' >"$OV/etc/openvpn/server/server-tcp-1194.conf"
+printf 'client\ncomp-lzo\n' >"$OV/etc/openvpn/client-udp-2200.ovpn"
+printf 'client\ncomp-lzo\n' >"$OV/home/vps/public_html/client-udp-2200.ovpn"
+printf '[Unit]\n' >"$OV/etc/systemd/system/badvpn-udpgw@.service"
+printf '#!/bin/sh\nexit 0\n' >"$OV/usr/bin/badvpn-udpgw"; chmod +x "$OV/usr/bin/badvpn-udpgw"
+make_stubs "$TMP/bin-ov" "LISTEN 0 128 127.0.0.1:7100 0.0.0.0:*"
+cat >"$TMP/bin-ov/openvpn" <<'STUBEOF'
+#!/bin/sh
+case "$*" in *--version*) echo "OpenVPN 2.5.9 x86_64-pc-linux-gnu"; exit 0 ;; esac
+conf=""; prev=""
+for a in "$@"; do [ "$prev" = "--config" ] && conf=$a; prev=$a; done
+if grep -q '^comp-lzo' "$conf" 2>/dev/null; then
+    echo "Options error: --comp-lzo is not supported in this version"; exit 1
+fi
+if grep -q 'auth-pam' "$conf" 2>/dev/null; then
+    echo "PLUGIN_INIT: could not load plugin"; exit 1
+fi
+exit 0
+STUBEOF
+chmod +x "$TMP/bin-ov/openvpn"
+
+OUT_OV="$TMP/out-ov.txt"
+GAMECHECK_ROOT="$OV" PATH="$TMP/bin-ov:$PATH" bash "$SCRIPT" --fix --yes --plain >"$OUT_OV" 2>&1
+echo "Skenario 7 (OVPN offline: comp-lzo + plugin PAM):"
+check_contains "comp-lzo di server dimatikan" "$OV/etc/openvpn/server/server-udp-2200.conf" "#comp-lzo"
+check_contains "comp-lzo di client dimatikan" "$OV/etc/openvpn/client-udp-2200.ovpn" "#comp-lzo"
+check_contains "client publik ikut disamakan" "$OV/home/vps/public_html/client-udp-2200.ovpn" "#comp-lzo"
+check_contains "path plugin PAM diperbaiki" "$OV/etc/openvpn/server/server-tcp-1194.conf" \
+    "$OV/usr/lib/x86_64-linux-gnu/openvpn/plugins/openvpn-plugin-auth-pam.so"
+check_contains "perbaikan comp-lzo dilaporkan" "$OUT_OV" "comp-lzo dinonaktifkan"
+check_contains "perbaikan plugin dilaporkan" "$OUT_OV" "path plugin PAM diperbaiki"
+check_absent "tidak ada warning plugin yang salah" "$OUT_OV" "plugin PAM tidak ditemukan"
+
+
+# ---------------------------------------------------------------- skenario 8
+# VPS dengan paket OpenVPN 2.4 (template openvpn@): config di /etc/openvpn/server
+# harus disymlink ke /etc/openvpn/<nama>.conf supaya unit-nya bisa jalan.
+OV2="$(mktemp -d)"
+mkdir -p "$OV2/etc/openvpn/server" "$OV2/etc/openvpn" "$OV2/etc/systemd/system" "$OV2/usr/bin"
+printf 'port 2200\nproto udp\n' >"$OV2/etc/openvpn/server/server-udp-2200.conf"
+printf '[Unit]\n' >"$OV2/etc/systemd/system/badvpn-udpgw@.service"
+printf '#!/bin/sh\nexit 0\n' >"$OV2/usr/bin/badvpn-udpgw"; chmod +x "$OV2/usr/bin/badvpn-udpgw"
+make_stubs "$TMP/bin-ov2" "LISTEN 0 128 127.0.0.1:7100 0.0.0.0:*"
+cat >"$TMP/bin-ov2/systemctl" <<'STUBEOF'
+#!/bin/sh
+case "$*" in
+    *list-unit-files*openvpn-server@*) exit 0 ;;
+    *list-unit-files*openvpn@*)        echo "openvpn@.service enabled"; exit 0 ;;
+    *is-active*)                       echo inactive; exit 3 ;;
+esac
+exit 0
+STUBEOF
+printf '#!/bin/sh\nexit 0\n' >"$TMP/bin-ov2/openvpn"; chmod +x "$TMP/bin-ov2/openvpn" "$TMP/bin-ov2/systemctl"
+
+OUT_OV2="$TMP/out-ov2.txt"
+GAMECHECK_ROOT="$OV2" PATH="$TMP/bin-ov2:$PATH" bash "$SCRIPT" --fix --yes --plain >"$OUT_OV2" 2>&1
+echo "Skenario 8 (OpenVPN 2.4, template openvpn@):"
+check_contains "template openvpn@ dikenali" "$OUT_OV2" "OpenVPN 2.4 terdeteksi"
+check_contains "symlink config dibuat" "$OUT_OV2" "symlink untuk template openvpn@ dibuat"
+ls -ld "$OV2/etc/openvpn/server-udp-2200.conf" >/dev/null 2>&1 \
+    && printf '  ok   symlink /etc/openvpn/server-udp-2200.conf ada\n' \
+    || { printf '  FAIL symlink /etc/openvpn/server-udp-2200.conf tidak dibuat\n'; fail=$((fail + 1)); }
+
 echo
 if [ "$fail" -eq 0 ]; then
     echo "Semua tes lolos."
