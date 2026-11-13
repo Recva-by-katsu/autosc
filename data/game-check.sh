@@ -21,11 +21,13 @@ ROOT="${GAMECHECK_ROOT:-}"
 PLAIN=0
 FIX=0
 ASSUME_YES=0
+VERBOSE=0
 for arg in "$@"; do
     case "$arg" in
         --plain) PLAIN=1 ;;
         --fix)   FIX=1 ;;
         --yes|-y) ASSUME_YES=1 ;;
+        --verbose) VERBOSE=1 ;;
         --help|-h)
             sed -n '2,20p' "$0" | sed 's/^# \?//'
             exit 0 ;;
@@ -54,10 +56,34 @@ section() {
     printf '\n%s== %s ==%s\n' "$C_DIM" "$1" "$C_END"
 }
 
-ok()   { OK_N=$((OK_N + 1));   printf '  %sOK  %s %s\n'   "$C_OK"   "$C_END" "$1"; }
+# Mode --fix hanya menampilkan yang berubah dan yang masih bermasalah; detail
+# OK/note disembunyikan supaya laporan tetap terbaca di terminal HP. --verbose
+# mengembalikan seluruh detail.
+QUIET=0
+[ "$FIX" = 1 ] && [ "$VERBOSE" = 0 ] && QUIET=1
+ok()   { OK_N=$((OK_N + 1));   [ "$QUIET" = 1 ] && return 0
+         printf '  %sOK  %s %s\n'   "$C_OK"   "$C_END" "$1"; }
 warn() { WARN_N=$((WARN_N + 1)); printf '  %sWARN%s %s\n' "$C_WARN" "$C_END" "$1"; FINDINGS+=("WARN|$1|${2:-}"); }
 bad()  { BAD_N=$((BAD_N + 1));   printf '  %sFAIL%s %s\n' "$C_BAD"  "$C_END" "$1"; FINDINGS+=("FAIL|$1|${2:-}"); }
-note() { printf '  %s----%s %s\n' "$C_DIM" "$C_END" "$1"; }
+note() { [ "$QUIET" = 1 ] && return 0; printf '  %s----%s %s\n' "$C_DIM" "$C_END" "$1"; }
+
+# Terjemahkan error OpenVPN yang umum jadi saran konkret.
+openvpn_error_hint() {
+    case "$1" in
+        *comp-lzo*|*compression*)
+            echo "OpenVPN 2.6+ menolak comp-lzo: pakai client tanpa kompresi (atau pasang OpenVPN 2.5)" ;;
+        *"Cannot open TUN"*|*"Cannot open tun"*|*"TUN/TAP"*)
+            echo "VPS tidak punya /dev/net/tun (OpenVZ/LXC): minta TUN/TAP ke provider" ;;
+        *"Address already in use"*|*"bind"*)
+            echo "port bentrok: ss -lnup | grep -E '1194|2200'" ;;
+        *plugin*|*PAM*)
+            echo "plugin PAM hilang: apt install libpam0g, cek /usr/lib/openvpn/" ;;
+        *"No such file"*|*"Cannot open"*)
+            echo "file sertifikat/kunci hilang: pasang ulang dari data/vpn.zip" ;;
+        *)
+            echo "detail: journalctl -u <unit> -n 50" ;;
+    esac
+}
 
 svc_active() { systemctl is-active "$1" >/dev/null 2>&1; }
 svc_state() {
@@ -147,13 +173,32 @@ UNIT
     fi
     [ -n "$ROOT" ] && return 0
     systemctl daemon-reload >/dev/null 2>&1
-    local port started=0
+    # Proses badvpn dari `screen` (cara lama) masih memegang port 7100-7300,
+    # sehingga unit systemd gagal bind dan berputar di state "activating".
+    if pgrep -f 'badvpn-udpgw --listen-addr' >/dev/null 2>&1; then
+        pkill -f 'badvpn-udpgw --listen-addr' 2>/dev/null && \
+            changed "proses badvpn lama (screen) dihentikan agar port bisa dipakai systemd"
+        sleep 1
+    fi
+    local port started="" failed=""
     for port in 7100 7200 7300; do
-        if ! systemctl is-active "badvpn-udpgw@$port" >/dev/null 2>&1; then
-            systemctl enable --now "badvpn-udpgw@$port" >/dev/null 2>&1 && started=$((started + 1))
+        if [ "$(systemctl is-active "badvpn-udpgw@$port" 2>/dev/null)" != active ]; then
+            systemctl enable --now "badvpn-udpgw@$port" >/dev/null 2>&1
+            sleep 0.3
+        fi
+        if [ "$(systemctl is-active "badvpn-udpgw@$port" 2>/dev/null)" = active ]; then
+            started="$started $port"
+        else
+            failed="$failed $port"
         fi
     done
-    [ "$started" -gt 0 ] && changed "UDPGW dihidupkan lewat systemd ($started port baru: 7100-7300)"
+    [ -n "$started" ] && changed "UDPGW aktif lewat systemd:$started"
+    if [ -n "$failed" ]; then
+        local err
+        err=$(journalctl -u "badvpn-udpgw@$(printf '%s' "$failed" | awk '{print $1}')" -n 6 --no-pager 2>/dev/null \
+              | grep -viE '^-- |^$' | tail -n 1)
+        warn "UDPGW gagal start:$failed" "${err:-cek: journalctl -u badvpn-udpgw@7100 -n 50}"
+    fi
 }
 
 fix_ws_timeout() {
@@ -252,7 +297,36 @@ fix_openvpn_mtu() {
         fi
         [ "$touched" = 1 ] && changed "OpenVPN $(basename "$conf"): tun-mtu 1400 + mssfix 1360"
     done
-    [ -n "$ROOT" ] || systemctl restart 'openvpn-server@*' >/dev/null 2>&1
+    [ -n "$ROOT" ] && return 0
+    systemctl restart 'openvpn-server@*' >/dev/null 2>&1
+    sleep 2
+    local unit st err
+    for unit in $(systemctl list-units --type=service --all --no-legend 'openvpn-server@*' 2>/dev/null | awk '{print $1}'); do
+        st=$(systemctl is-active "$unit" 2>/dev/null)
+        [ "$st" = active ] && continue
+        err=$(journalctl -u "$unit" -n 8 --no-pager 2>/dev/null | grep -viE '^-- |^$' | tail -n 1)
+        warn "$unit tidak jalan setelah restart ($st)" "${err:-cek: journalctl -u $unit -n 50}"
+    done
+}
+
+fix_sshd() {
+    local conf; conf=$(p /etc/ssh/sshd_config)
+    [ -f "$conf" ] || { kept "sshd_config tidak ada"; return 0; }
+    if grep -qE '^[[:space:]]*ClientAliveInterval' "$conf"; then
+        kept "sshd ClientAliveInterval sudah diset"
+        return 0
+    fi
+    backup "$conf"
+    printf '\n# KatsuTun: jaga sesi WS/SSH tidak diputus saat idle\nClientAliveInterval 30\nClientAliveCountMax 6\n' >>"$conf"
+    if [ -z "$ROOT" ] && have sshd && ! sshd -t 2>/dev/null; then
+        cp -a "$conf.gamecheck.bak" "$conf"
+        warn "sshd menolak config baru, perubahan dibatalkan" "periksa manual: sshd -t"
+        return 0
+    fi
+    changed "sshd: ClientAliveInterval 30 + ClientAliveCountMax 6"
+    if [ -z "$ROOT" ]; then
+        systemctl reload ssh >/dev/null 2>&1 || systemctl reload sshd >/dev/null 2>&1
+    fi
 }
 
 fix_ip_forward() {
@@ -292,6 +366,7 @@ run_fixes() {
     fix_ws_timeout
     fix_squid
     fix_fail2ban
+    fix_sshd
     fix_openvpn_mtu
     fix_ip_forward
     fix_mss_clamp
@@ -339,7 +414,22 @@ if have systemctl; then
     if [ -n "$ovpn_units" ]; then
         while read -r u; do
             [ -z "$u" ] && continue
-            printf '  %s----%s %s: %s\n' "$C_DIM" "$C_END" "$u" "$(svc_state "$u")"
+            st=$(svc_state "$u")
+            case "$st" in
+                active) ok "$u: active" ;;
+                n/a)    note "$u: status tidak tersedia" ;;
+                *)
+                    warn "$u: $st" "proses OpenVPN tidak pernah siap - client tidak bisa connect"
+                    if have journalctl; then
+                        err=$(journalctl -u "$u" -n 12 --no-pager 2>/dev/null \
+                              | grep -viE '^-- |^$|^\s*$' | tail -n 2 | tr '\n' ' ' | cut -c1-160)
+                        if [ -n "$err" ]; then
+                            printf '  %s     ↳ %s%s\n' "$C_DIM" "$err" "$C_END"
+                            printf '  %s     = %s%s\n' "$C_DIM" "$(openvpn_error_hint "$err")" "$C_END"
+                        fi
+                    fi
+                    ;;
+            esac
         done <<<"$ovpn_units"
     else
         note "tidak ada unit openvpn-server@* (OpenVPN tidak terpasang)"
@@ -386,28 +476,55 @@ else
     esac
 fi
 
-# Port yang hanya hidup sesi ini tapi tidak di rc.local -> hilang setelah reboot.
+# Autostart UDPGW. Dua cara yang sah: unit systemd badvpn-udpgw@ (cara baru)
+# atau baris screen di rc.local (cara lama). Kehadiran systemd TIDAK boleh
+# dilaporkan sebagai FAIL hanya karena rc.local sudah dibersihkan.
+RC_UPGW=""
 if fexists /etc/rc.local; then
     RC_UPGW=$(grep -Eo 'listen-addr +(127\.0\.0\.1|0\.0\.0\.0):(7[1-9]00)' "$(p /etc/rc.local)" 2>/dev/null | grep -Eo '(7[1-9]00)$' | sort -un | tr '\n' ' ')
-    if [ -z "$RC_UPGW" ]; then
-        bad "rc.local tidak memuat badvpn-udpgw" "setelah reboot, UDPGW hilang walau sekarang hidup"
-    else
-        note "rc.local menghidupkan UDPGW: $RC_UPGW"
-        for port in $LIVE_UPGW; do
-            case " $RC_UPGW " in
-                *" $port "*) : ;;
-                *) warn "port UDPGW $port hidup sekarang tapi tidak ada di rc.local" "akan mati setelah reboot" ;;
-            esac
-        done
-        if grep -q 'screen -dmS' "$(p /etc/rc.local)" 2>/dev/null && ! have screen; then
-            bad "rc.local memakai 'screen' tapi paket screen tidak terpasang" "badvpn-udpgw tidak akan start setelah reboot: apt install -y screen"
-        fi
+fi
+UPGW_UNITS=$(ls "$(p /etc/systemd/system)" 2>/dev/null | grep -c '^badvpn-udpgw@.*\.service$')
+
+if [ "${UPGW_UNITS:-0}" -gt 0 ]; then
+    ok "autostart UDPGW lewat systemd ($UPGW_UNITS unit badvpn-udpgw@)"
+    unstable=""
+    for port in 7100 7200 7300; do
+        case "$(svc_state "badvpn-udpgw@$port")" in
+            active|n/a) : ;;
+            not-found) warn "unit badvpn-udpgw@$port tidak ada" "jalankan: katsu-gamecheck --fix" ;;
+            *) unstable="$unstable $port" ;;
+        esac
+    done
+    if [ -n "$unstable" ]; then
+        warn "unit UDPGW tidak stabil:$unstable" \
+            "biasanya port masih dipegang proses screen lama; katsu-gamecheck --fix membereskannya"
+    fi
+    if [ -n "$RC_UPGW" ]; then
+        warn "rc.local masih menjalankan badvpn di port $RC_UPGW" \
+            "dobel dengan systemd (port rebutan); katsu-gamecheck --fix membersihkan"
+    fi
+    if have systemctl && ! systemctl is-enabled "badvpn-udpgw@7100" >/dev/null 2>&1; then
+        warn "unit badvpn-udpgw@7100 belum enabled" "tidak hidup setelah reboot: systemctl enable badvpn-udpgw@7100"
+    fi
+elif [ -n "$RC_UPGW" ]; then
+    note "autostart UDPGW lewat rc.local: $RC_UPGW"
+    for port in $LIVE_UPGW; do
+        case " $RC_UPGW " in
+            *" $port "*) : ;;
+            *) warn "port UDPGW $port hidup sekarang tapi tidak ada di rc.local" "akan mati setelah reboot" ;;
+        esac
+    done
+    if grep -q 'screen -dmS' "$(p /etc/rc.local)" 2>/dev/null && ! have screen; then
+        bad "rc.local memakai 'screen' tapi paket screen tidak terpasang" "badvpn-udpgw tidak akan start setelah reboot: apt install -y screen"
     fi
     rc_svc=$(svc_state rc-local)
     case "$rc_svc" in
         active|n/a) : ;;
         *) warn "service rc-local: $rc_svc" "rc.local tidak dijalankan saat boot -> UDPGW mati setelah reboot" ;;
     esac
+else
+    bad "UDPGW tidak punya autostart (systemd maupun rc.local)" \
+        "setelah reboot UDP game mati - jalankan: katsu-gamecheck --fix"
 fi
 
 # OpenVPN UDP: satu-satunya jalur UDP native (paling bagus untuk game).
@@ -415,7 +532,8 @@ if udp_listeners | grep -qE ':2200\b'; then
     ok "OpenVPN UDP listening di :2200 (jalur terbaik untuk game)"
 else
     if fexists /etc/openvpn/server/server-udp-2200.conf; then
-        warn "OpenVPN UDP 2200 tidak listening padahal conf ada" "cek: journalctl -u openvpn-server@server-udp-2200 -n 50"
+        warn "OpenVPN UDP 2200 tidak listening padahal conf ada" \
+            "cek: journalctl -u openvpn-server@server-udp-2200 -n 50 (lihat bagian 1 untuk error-nya)"
     else
         note "OpenVPN UDP 2200 tidak terpasang (bukan masalah kalau pakai SSH-WS + UDPGW)"
     fi
@@ -552,26 +670,64 @@ if fexists /usr/local/ddos/ddos.conf; then
     n=$(grep -E '^[[:space:]]*NO_OF_CONNECTIONS' "$(p /usr/local/ddos/ddos.conf)" 2>/dev/null | grep -Eo '[0-9]+')
     if [ -n "$n" ] && [ "$n" -lt 300 ]; then
         warn "DDos Deflate aktif dengan NO_OF_CONNECTIONS=$n" "game membuka banyak koneksi -> IP pelanggan bisa diblokir otomatis"
+    elif [ -z "$n" ]; then
+        note "DDos Deflate ada tapi konfigurasinya tidak terbaca (unduhan lama dari inetbase sudah mati)"
     else
-        note "DDos Deflate: NO_OF_CONNECTIONS=${n:-?}"
+        note "DDos Deflate: NO_OF_CONNECTIONS=$n"
     fi
 fi
 
-for c in /etc/cron.d/re_otm /etc/cron.d/auto_reboot /etc/cron.d/ddos; do
-    [ -f "$(p "$c")" ] || continue
-    line=$(grep -vE '^[[:space:]]*(#|$)' "$(p "$c")" 2>/dev/null | head -1)
-    case "$c" in
-        *re_otm*|*auto_reboot*)
-            warn "reboot otomatis aktif ($(basename "$c")): $line" "setiap reboot = semua sesi game putus; pakai interval >= 6 jam atau matikan" ;;
-        *) note "$(basename "$c"): $line" ;;
+# Baris jadwal cron: lewati komentar dan assignment (SHELL=..., PATH=...) yang
+# dulu dilaporkan sebagai "jadwal" sehingga reboot harian pun jadi WARN.
+cron_schedule() {
+    grep -vE '^[[:space:]]*(#|$)' "$1" 2>/dev/null \
+        | grep -vE '^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*=' | head -1
+}
+cron_every_hours() {  # echo "<jam>|<teks>" ; jam besar = jarang
+    local line=$1 m h
+    m=$(printf '%s' "$line" | awk '{print $1}')
+    h=$(printf '%s' "$line" | awk '{print $2}')
+    case "$h" in
+        "*")
+            case "$m" in
+                "*")  echo "0.05|tiap menit" ;;
+                "*/"*) echo "$(awk -v x="${m#*/}" 'BEGIN{printf "%.2f", x/60}')|tiap ${m#*/} menit" ;;
+                *)    echo "1|tiap jam" ;;
+            esac ;;
+        "*/"*) echo "${h#*/}|tiap ${h#*/} jam" ;;
+        *)     echo "24|harian $(printf '%02d' "${h:-0}"):$(printf '%02d' "${m:-0}")" ;;
     esac
-done
+}
 
-if fexists /home/limit && [ -s "$(p /home/limit)" ]; then
-    warn "limit bandwidth (wondershaper) aktif" "ping/lag game naik; matikan via menu Bandwidth"
+for c in /etc/cron.d/re_otm /etc/cron.d/auto_reboot; do
+    [ -f "$(p "$c")" ] || continue
+    line=$(cron_schedule "$(p "$c")")
+    [ -n "$line" ] || continue
+    parsed=$(cron_every_hours "$line")
+    hours=${parsed%%|*}
+    when=${parsed#*|}
+    if awk -v h="${hours:-24}" 'BEGIN{exit !(h < 6)}'; then
+        warn "reboot otomatis terlalu sering ($(basename "$c"): $when)" \
+            "setiap reboot memutus semua sesi game; pakai >= 6 jam atau matikan (menu 11 -> 07)"
+    else
+        note "reboot otomatis: $when ($(basename "$c")) - normal, semua sesi putus sekali"
+    fi
+done
+if [ -f "$(p /etc/cron.d/ddos)" ]; then
+    note "cron ddos: $(cron_schedule "$(p /etc/cron.d/ddos)")"
 fi
-if have wondershaper && systemctl is-active wondershaper >/dev/null 2>&1; then
-    warn "wondershaper.service aktif" "throttle global, termasuk trafik game"
+
+# /home/limit hanyalah penanda; yang menentukan adalah service/tc. Penanda basi
+# jangan sampai dilaporkan sebagai throttle aktif.
+WS_ACTIVE=0
+if have systemctl && systemctl is-active wondershaper >/dev/null 2>&1; then WS_ACTIVE=1; fi
+if have tc; then
+    if tc qdisc show dev "${IFACE:-eth0}" 2>/dev/null | grep -qE '\b(tbf|htb|netem)\b'; then WS_ACTIVE=1; fi
+fi
+if [ "$WS_ACTIVE" = 1 ]; then
+    warn "limit bandwidth (wondershaper/tc) aktif di ${IFACE:-eth0}" "ping/lag game naik; matikan via menu Bandwidth"
+elif fexists /home/limit && [ -s "$(p /home/limit)" ]; then
+    note "penanda /home/limit masih ada tapi throttle tidak aktif (aman)"
 fi
 
 for fw in ufw firewalld; do
@@ -606,6 +762,21 @@ if fexists /etc/resolv.conf; then
     fi
 fi
 
+remaining() {  # daftar sisa temuan (dipakai setelah --fix)
+    [ "${#FINDINGS[@]}" -eq 0 ] && return 0
+    local item level msg hint
+    printf '\n  Sisa temuan:\n'
+    for item in "${FINDINGS[@]}"; do
+        IFS='|' read -r level msg hint <<<"$item"
+        if [ "$level" = FAIL ]; then
+            printf '   %sFAIL%s %s\n' "$C_BAD" "$C_END" "$msg"
+        else
+            printf '   %sWARN%s %s\n' "$C_WARN" "$C_END" "$msg"
+        fi
+        [ -n "$hint" ] && printf '        %s-> %s%s\n' "$C_DIM" "$hint" "$C_END"
+    done
+}
+
 ########################################################################
 section "Ringkasan"
 ########################################################################
@@ -619,8 +790,10 @@ if [ "$BAD_N" -eq 0 ] && [ "$WARN_N" -eq 0 ]; then
 elif [ "$BAD_N" -gt 0 ]; then
     printf '\n  Perbaiki dulu item FAIL di atas, lalu jalankan ulang: katsu-gamecheck\n'
     [ "$FIX" = 1 ] || printf '  Sebagian bisa otomatis: katsu-gamecheck --fix\n'
+    remaining
     exit 1
 else
     printf '\n  Ada %d peringatan. Item ber-tanda "gejala" adalah yang biasanya membuat game putus.\n' "$WARN_N"
+    [ "$FIX" = 1 ] && remaining
 fi
 exit 0
