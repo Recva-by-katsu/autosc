@@ -48,3 +48,22 @@ Update Your Script
 - Diagnostik: kalau unit OpenVPN mati tanpa error di jurnal, tampil saran
   menjalankan --fix; kalau config ada tapi unit systemd tidak ada, itu
   dilaporkan sebagai temuan.
+
+1.4.3
+- PERBAIKAN PENTING: OpenVPN TCP/UDP gagal start dengan pesan
+  "Options error: Unrecognized option or missing or extra parameter(s) in
+  /etc/openvpn/server/server-*.conf:24: verb". Penyebabnya bukan OpenVPN,
+  melainkan tambalan MTU dari v1.4.0/1.4.1: conf di data/vpn.zip tidak
+  diakhiri newline, sehingga `echo 'tun-mtu 1400' >> conf` menempel ke baris
+  terakhir menjadi "verb 3tun-mtu 1400" dan OpenVPN menolaknya.
+- katsu-gamecheck --fix merapikan conf yang sudah terlanjur rusak: newline
+  akhir dipastikan, opsi yang menempel dipisah jadi baris sendiri, dan opsi
+  MTU yang terduplikasi dibuang (nilai pertama dipakai). Idempoten.
+- Urutan perbaikan dirapikan: rapikan conf -> tambal MTU -> validasi ->
+  restart + verifikasi sekali. Peringatan ganda untuk penyebab yang sama
+  (mis. "tidak jalan setelah restart" + "masih gagal") tidak lagi muncul.
+- Validator OpenVPN: kalau build openvpn tidak mendukung --test-crypto,
+  validasi memakai jalur kedua (--show-ciphers) supaya config sehat tidak
+  pernah dilaporkan gagal.
+- Instalasi baru (data/vpn.sh) juga memastikan newline akhir sebelum menambah
+  tun-mtu/mssfix, jadi bug ini tidak terulang di VPS yang baru dipasang.
