@@ -37,7 +37,12 @@ SSH memakai daftar akun script, bukan seluruh user Linux.
 Bandwidth `M` berarti MiB (RX + TX), memakai vnStat JSON v2 pada interface rute
 default atau `interface` di konfigurasi. Data yang hilang, vnStat lama, atau
 interface yang tidak dapat ditentukan ditampilkan `N/A`, bukan nol palsu.
-Semua submenu memakai komponen yang sama (`data/katsu-ui.sh`): frame otomatis 36–60 kolom, opsi dua kolom pada layar lebar dan satu kolom pada layar sempit, `[00] Back` / `[x] Exit` di setiap layar. Tes: `python3 tests/test-dashboard.py`, `python3 tests/test-ui.py`, dan `python3 tests/test-menus.py` (merender semua menu terhadap VPS stub).
+Semua submenu memakai komponen yang sama (`data/katsu-ui.sh`): frame otomatis 36–60 kolom
+dengan sudut membulat, title bar penuh berisi versi skrip, status berbentuk badge
+`● ON` / `○ OFF` / `◌ N/A` rata kanan, heading grup, dan opsi dua kolom pada layar
+lebar / satu kolom pada layar sempit, `[00] Back` / `[x] Exit` di setiap layar.
+`KATSU_ASCII=1` mengganti semua glyph kotak dengan ASCII, `NO_COLOR=1` mematikan
+warna, dan `ui_copy` memastikan link/payload/pubkey tidak pernah terpotong. Tes: `python3 tests/test-dashboard.py`, `python3 tests/test-ui.py`, dan `python3 tests/test-menus.py` (merender semua menu terhadap VPS stub).
 
 ## Kompatibilitas Sistem
 
@@ -224,3 +229,104 @@ dalam format `.zip.enc` menggunakan AES-256-CBC dengan PBKDF2; password itu
 diperlukan kembali saat restore. Kredensial penyimpanan dan SMTP hanya disimpan
 di `/etc/katsutun/backup.conf` (mode `600`), tidak pernah di repository.
 
+
+## SlowDNS (SSH over DNS)
+
+SlowDNS memakai `dnstt-server`: client menyambung lewat DNS (UDP 53), tunnel
+diteruskan ke OpenSSH `127.0.0.1:22`. Karena ujungnya SSH yang sama, **satu akun
+SSH langsung berlaku untuk SSH dan SlowDNS** — tidak ada akun kedua.
+
+Aktifkan dari `menu` → `01 SSH & OpenVPN` → `08 SlowDNS`:
+
+```
+[01] Install / repair                      [05] Show client config
+[02] Set nameserver                        [06] Check delegation
+[03] Start service                         [07] View log
+[04] Stop service                          [08] Restart service
+                                             [09] Remove
+```
+
+Langkah pasang:
+
+1. **Delegasi NS** di panel domain Anda — buat NS record
+   `slow.domainanda.com` → `A` ke IP VPS, lalu delegasikan ke nameserver itu
+   sendiri (`slow.domainanda.com NS slow.domainanda.com`). Port **UDP 53** harus
+   terbuka.
+2. `menu-slowdns` → **02 Set nameserver** → isi `slow.domainanda.com`.
+3. **06 Check delegation** untuk memastikan NS sudah menjawab.
+
+Detail teknis:
+
+| Bagian | Nilai |
+|---|---|
+| Binary | `/usr/local/bin/dnstt-server` (`dnstt.network` build; `SLOWDNS_BIN_URL` untuk override) |
+| Keypair | `/etc/slowdns/server.key` + `server.pub` (`-gen-key`, private key mode `600`) |
+| Config | `/etc/slowdns/config` (NS, port, upstream, MTU) |
+| Service | `slowdns.service` (`Restart=always`) |
+| Port | dnstt listen UDP `5300`; `iptables` PREROUTING me-redirect UDP `53` → `5300` |
+
+Setelah aktif, layar akun SSH otomatis menampilkan blok **SLOWDNS** berisi
+Server, Nameserver, Port `22`, dan Public key (lewat `ui_copy`, tidak terpotong).
+Isi itu ke aplikasi SlowDNS/HTTP Custom dengan username & password akun SSH.
+
+Perintah CLI: `menu-slowdns`, `menu-slowdns install|ns <domain>|start|stop|restart|status|client|check|log|uninstall`.
+
+> SlowDNS **bukan** untuk game: latency tunneling DNS terlalu tinggi. Untuk game
+> pakai SSH-WS + UDPGW atau OpenVPN UDP (lihat bagian berikut).
+> Tes offline: `bash tests/test-slowdns.sh`.
+
+## Diagnosa game (Mobile Legends, PUBG, Free Fire, dll)
+
+Script ini menyediakan jalur **TCP** (SSH-WS, SSH-SSL, VMess/VLESS/Trojan,
+OpenVPN-TCP) dan satu jalur **UDP**: `badvpn-udpgw` di `127.0.0.1:7100-7300`
+(UDP-over-TCP) plus OpenVPN UDP `2200`. Game seluler hampir selalu memakai UDP
+untuk match/ping, jadi kalau UDPGW mati atau tidak diset di client, game bisa
+login tapi akan macet di loading atau "reconnecting".
+
+Periksa VPS dengan diagnostik read-only (tidak mengubah apa pun):
+
+```
+menu            -> 11 Server settings -> 11 Game check
+katsu-gamecheck              # diagnosa saja (read-only)
+katsu-gamecheck --fix        # perbaiki otomatis (minta konfirmasi)
+katsu-gamecheck --fix --yes  # perbaiki tanpa konfirmasi
+katsu-gamecheck --plain      # tanpa warna (cocok untuk log)
+```
+
+Yang diperiksa: status layanan inti, port UDPGW yang benar-benar hidup
+(dibandingkan dengan isi `rc.local` supaya kelihatan mana yang mati setelah
+reboot), idle timeout `ws-stunnel`/`ws-dropbear` dan `proxy_read_timeout` nginx,
+aturan `squid` (`http_access deny all` bawaan template membuat client luar dapat
+403), `ip_forward` + `MASQUERADE` OpenVPN, MTU `tun0`, IP yang diblokir
+`fail2ban`/DDos Deflate, throttle `wondershaper`, cron reboot otomatis, status
+BBR, dan kesehatan DNS.
+
+Exit code `1` berarti ada temuan `FAIL` yang perlu diperbaiki lebih dulu.
+Setiap file yang diubah `--fix` disimpan dulu ke `<file>.gamecheck.bak`.
+
+`--fix` menangani: `proxy_read_timeout 3600s` + `proxy_buffering off` pada blok
+SSH-WS nginx (default 60 detik memutus game saat loading), unit systemd
+`badvpn-udpgw@` auto-restart untuk 7100-7300 menggantikan `screen` di
+`rc.local`, idle timeout `ws-stunnel`/`ws-dropbear`/`ws-ovpn` dari ~3 menit ke
+15 menit, config squid panel (bukan template `deny all`), `jail.local` fail2ban
+dengan `ignoreip` + ban 1 jam, `tun-mtu 1400` + `mssfix 1360` (+`data-ciphers`
+saat OpenVPN 2.6) untuk `tun0`, `ip_forward=1` persisten, dan MSS clamp-to-PMTU.
+Semua langkah idempoten — aman dijalankan berkali-kali.
+
+Tes offline: `bash tests/test-game-check.sh` (skenario rusak, sehat, dan `--fix`).
+
+### Setelan client yang benar untuk game
+
+| Mode | Setelan |
+|---|---|
+| SSH-WS | port `80`/`443`, path `/`, **UDPGW `7300`** |
+| SSH-SSL-WS | port `2096`/`443`, **UDPGW `7300`** |
+| OpenVPN | `client-udp-2200.ovpn` (UDP native, paling stabil untuk game) |
+| SlowDNS | **jangan** untuk game: latency DNS tunneling terlalu tinggi — khusus SSH |
+
+Catatan: template `data/squid.conf` yang ikut terpasang adalah contoh bawaan
+Ubuntu/Debian (`http_access allow localhost` + `http_access deny all`), sehingga
+proxy `3128` hanya bisa dipakai dari dalam VPS. Kalau proxy memang mau dibuka
+untuk client, tambahkan sendiri `http_access allow all` **beserta pembatasan
+IP** — proxy terbuka bisa dipakai pihak lain untuk spam/DDoS dan membuat IP VPS
+masuk blacklist.

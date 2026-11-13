@@ -1,1 +1,15 @@
+KatsuTun Premium - changelog
+
+1.4.0
+- SlowDNS (dnstt-server) masuk menu SSH: satu akun SSH langsung berlaku untuk
+  SSH dan SlowDNS. Nameserver, keypair, service systemd, redirect UDP 53->5300,
+  cek delegasi NS, dan tampilan public key di layar akun.
+- Perbaikan penyebab game tidak bisa: proxy_read_timeout nginx 3600s,
+  badvpn-udpgw lewat systemd (auto-restart, 7100-7900), idle timeout WS 15 menit,
+  config squid panel, fail2ban ignoreip, tun-mtu 1400 + mssfix 1360, ip_forward
+  persisten, MSS clamp. Tersedia otomatis lewat: katsu-gamecheck --fix
+- UI baru: title bar berisi versi, badge status rata kanan, heading grup,
+  sudut membulat, footer konsisten, gap antar kolom lebih rapi.
+- katsu-gamecheck: diagnostik game read-only + mode --fix.
+
 Update Your Script

@@ -159,22 +159,32 @@ wget -O /home/vps/public_html/index.html "$RAW/data/index"
 mkdir /home/vps/public_html/ss-ws
 mkdir /home/vps/public_html/clash-ws
 
-# install badvpn
+# install badvpn udpgw
+# UDP game dikirim sebagai UDP-over-TCP lewat port ini. Sebelumnya dijalankan
+# dengan `screen` dari rc.local sehingga port 7400-7900 tidak pernah hidup lagi
+# setelah reboot dan proses mati tidak dihidupkan ulang. Unit systemd template
+# memberi auto-restart dan port yang konsisten.
 cd
 wget -O /usr/bin/badvpn-udpgw "$RAW/data/newudpgw"
 chmod +x /usr/bin/badvpn-udpgw
-sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7100 --max-clients 500' /etc/rc.local
-sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7200 --max-clients 500' /etc/rc.local
-sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7300 --max-clients 500' /etc/rc.local
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7100 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7200 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7300 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7400 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7500 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7600 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7700 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7800 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7900 --max-clients 500
+cat > /etc/systemd/system/badvpn-udpgw@.service <<'UNIT'
+[Unit]
+Description=badvpn udpgw UDP-over-TCP on port %i
+After=network.target
+[Service]
+ExecStart=/usr/bin/badvpn-udpgw --listen-addr 127.0.0.1:%i --max-clients 500
+Restart=always
+RestartSec=2
+LimitNOFILE=65535
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload
+for port in 7100 7200 7300 7400 7500 7600 7700 7800 7900; do
+    systemctl enable --now "badvpn-udpgw@$port" >/dev/null 2>&1
+done
+# bersihkan sisa baris lama di rc.local supaya port tidak dobel
+sed -i '/badvpn-udpgw/d' /etc/rc.local 2>/dev/null
 
 # setting port ssh
 cd
@@ -209,6 +219,7 @@ apt -y install squid || apt -y install squid3
 wget -q -O /etc/squid/squid.conf "$RAW/data/squid.conf" || { echo -e "[ ${red}ERROR${NC} ] Gagal unduh squid.conf" >&2; exit 1; }
 [ -s /etc/squid/squid.conf ] || { echo -e "[ ${red}ERROR${NC} ] squid.conf kosong" >&2; exit 1; }
 sed -i $MYIP2 /etc/squid/squid.conf
+systemctl restart squid >/dev/null 2>&1 || service squid restart >/dev/null 2>&1
 
 cd
 # install stunnel

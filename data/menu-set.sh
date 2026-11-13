@@ -228,7 +228,7 @@ menu-set
 
 ui_screen "SERVER SETTINGS" "status, tweaks and tools"
 ui_card_start
-ui_options "01:Running services" "06:Restart all" "02:Set banner" "07:Auto reboot" "03:Bandwidth usage" "08:Speedtest" "04:Anti torrent:$sts_plain" "09:HideSSH" "05:TCP tweak" "10:Region checker"
+ui_options "01:Running services" "06:Restart all" "02:Set banner" "07:Auto reboot" "03:Bandwidth usage" "08:Speedtest" "04:Anti torrent:$sts_plain" "09:HideSSH" "05:TCP tweak" "10:Region checker" "11:Game check"
 ui_card_end
 ui_back_hint
 ui_prompt
@@ -244,6 +244,18 @@ case $opt in
 08 | 8) clear ; mspeed ;;
 09 | 9) clear ; hidessh ;;
 10) clear ; regionchecker ;;
+11) clear
+    if command -v katsu-gamecheck >/dev/null 2>&1; then
+        katsu-gamecheck || true
+        ui_prompt "Terapkan perbaikan otomatis? (y/N):"
+        read -r fixyn
+        case "$fixyn" in
+            y|Y) clear; katsu-gamecheck --fix --yes || true ;;
+        esac
+    else
+        echo "katsu-gamecheck belum terpasang. Jalankan: katsu-update apply --force"
+    fi
+    ui_pause ; menu-set ;;
 00 | 0 | x | X) clear ; menu ;;
 *) clear ; menu-set ;;
 esac

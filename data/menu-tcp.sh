@@ -156,7 +156,7 @@ net.core.rmem_max = 16777216
 net.core.wmem_max = 16777216
 net.ipv4.tcp_rmem = 4096 87380 16777216
 net.ipv4.tcp_wmem = 4096 16384 16777216
-net.ipv4.tcp_low_latency = 1
+net.ipv4.tcp_low_latency = 0
 net.ipv4.tcp_slow_start_after_idle = 0" /etc/sysctl.conf >/tmp/syscl && mv /tmp/syscl /etc/sysctl.conf
     sysctl -p /etc/sysctl.conf >/dev/null
 ui_line "[INFO] TCP Tweaker settings successfully removed."
@@ -183,7 +183,7 @@ net.core.rmem_max = 16777216
 net.core.wmem_max = 16777216
 net.ipv4.tcp_rmem = 4096 87380 16777216
 net.ipv4.tcp_wmem = 4096 16384 16777216
-net.ipv4.tcp_low_latency = 1
+net.ipv4.tcp_low_latency = 0
 net.ipv4.tcp_slow_start_after_idle = 0" >>/etc/sysctl.conf
     sysctl -p /etc/sysctl.conf >/dev/null
 ui_line "[INFO] TCP Tweaker settings added successfully."
